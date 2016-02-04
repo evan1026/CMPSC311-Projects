@@ -10,19 +10,19 @@ OBJS = $(ODIR)/word.o $(ODIR)/list.o
 TEST_LL_OBJS = $(OBJS) $(ODIR)/test_ll.o
 MAIN_OBJS = $(OBJS) $(ODIR)/main.o
 
+all: $(ODIR) $(MAIN_OBJS)
+	$(CC) -o wordc $(MAIN_OBJS)
+
 $(ODIR)/%.o: $(SDIR)/%.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 test_ll: $(ODIR) $(TEST_LL_OBJS)
 	$(CC) -o test_ll $(TEST_LL_OBJS)
 
-all: $(ODIR) $(MAIN_OBJS)
-	$(CC) -o wordc $(OBJS)
-
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o test_ll
+	rm -f $(ODIR)/*.o test_ll wordc
 
 $(ODIR):
 	mkdir -p $(ODIR)
