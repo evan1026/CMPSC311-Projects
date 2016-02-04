@@ -1,54 +1,68 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
-int main(int argc, char **argv) {
+#include "list.h"
 
-    FILE *input_textfile = fopen(argv[1, "r");
-    FILE *output_countfile = fopen(argv[2], "w");
-    FILE *output_runtime = fopen(argv[3], "w");
+bool check_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
+bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
 
-    if (check_files(FILE input_textfile, FILE output_countfile, FILE output_runtime){
-        printf("All files opened succesfully");
+int main(int argc, char *argv[]) {
+
+    //the following indices will be 1, 2, 3 later on
+    FILE *input_textfile = fopen(argv[4], "r");
+    FILE *output_countfile = fopen(argv[5], "w");
+    FILE *output_runtime = fopen(argv[6], "w");
+    char *input_word;
+    linked_list *words_list;
+
+    if (check_files(input_textfile, output_countfile, output_runtime)){
+        printf("All files opened successfully");
+    }
+
+    while (!feof(input_textfile)){
+        fscanf(input_textfile, "%s", input_word);
+        printf("Adding word %s", input_word);
+        ll_count_word(words_list, input_word); 
+        printf("\nAdded");   
     }
 
 
 
 
-
-
-    if (close_files(FILE input_textfile, FILE output_countfile, FILE output_runtime){
-        printf("All files closed succesfully");
+    if (close_files(input_textfile, output_countfile, output_runtime)){
+        printf("All files closed successfully");
     } 
 
     return 0;
 }
 
-//Checks if all the input and output files were opened succesfully
-bool check_files(FILE input_textfile, FILE output_countfile, FILE output_runtime){
+//Checks if all the input and output files were opened successfully
+bool check_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime){
 
-    bool opened_succesfully = true;
+    bool opened_successfully = true;
 
     if (input_textfile == NULL){
         fprintf(stderr, "Can't open input textfile\n");
-        opened_succesfully = false;
+        opened_successfully = false;
     } 
 
     if (output_countfile == NULL){
         fprintf(stderr, "Can't open output countfile\n");
-        opened_succesfully = false;
+        opened_successfully = false;
     }
 
     if (output_runtime == NULL){
         fprintf(stderr, "Can't open output runtime file\n");
-        opened_succesfully = false;
+        opened_successfully = false;
     }
 
-    return opened_succesfully;
+    return opened_successfully;
 
 }
 
 //Closes all the files and returns whether they all closed successfully
-bool close_files(FILE input_textfile, FILE output_countfile, FILE output_runtime){
+bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime){
 
     bool closed_successfully = true;
 
@@ -64,9 +78,9 @@ bool close_files(FILE input_textfile, FILE output_countfile, FILE output_runtime
 
     if (fclose(output_runtime) == EOF){
         fprintf(stderr, "Error closing output runtime\n");
-        closed_succesfully = false;
+        closed_successfully = false;
     }
 
-    return closed_succesfully;
+    return closed_successfully;
 
 }
