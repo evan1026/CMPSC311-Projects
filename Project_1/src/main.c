@@ -9,22 +9,23 @@ bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runt
 
 int main(int argc, char *argv[]) {
 
-    //the following indices will be 1, 2, 3 later on
-    FILE *input_textfile = fopen(argv[4], "r");
-    FILE *output_countfile = fopen(argv[5], "w");
-    FILE *output_runtime = fopen(argv[6], "w");
-    char *input_word;
-    linked_list *words_list;
+    FILE *input_textfile = fopen(argv[1], "r");
+    FILE *output_countfile = fopen(argv[2], "w");
+    FILE *output_runtime = fopen(argv[3], "w");
+    char input_word[10];
+    linked_list words_list;
 
     if (check_files(input_textfile, output_countfile, output_runtime)){
         printf("All files opened successfully");
     }
 
+    ll_init(&words_list);
+
     while (!feof(input_textfile)){
         fscanf(input_textfile, "%s", input_word);
         printf("Adding word %s", input_word);
-        ll_count_word(words_list, input_word); 
-        printf("\nAdded");   
+        ll_count_word(&words_list, input_word);
+        printf("\nAdded\n");
     }
 
 
@@ -32,7 +33,7 @@ int main(int argc, char *argv[]) {
 
     if (close_files(input_textfile, output_countfile, output_runtime)){
         printf("All files closed successfully");
-    } 
+    }
 
     return 0;
 }
@@ -73,7 +74,7 @@ bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runt
 
     if (fclose(output_countfile) == EOF){
         fprintf(stderr, "Error closing output countfile\n");
-        closed_successfully = false; 
+        closed_successfully = false;
     }
 
     if (fclose(output_runtime) == EOF){
