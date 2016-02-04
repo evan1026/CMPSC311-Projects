@@ -11,6 +11,7 @@ typedef struct word_t {
 
 word_t *make_word(char *word_c);
 bool word_matches(word_t *word, char *word_c);
+int word_cmp(word_t *word, char* word_c);
 void word_dispose(word_t *word);
 
 #endif

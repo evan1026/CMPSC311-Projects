@@ -27,26 +27,37 @@ word_t *make_word(char *word_c) {
 }
 
 bool word_matches(word_t *word, char *word_c) {
-    int src_i = 0,
-        dest_i = 0; // for iteration
-    bool match = true;
+    return word_cmp(word, word_c) == 0;
+}
 
-    while (word_c[src_i] != 0) { // while not at end of string
+int word_cmp(word_t *word, char *word_c) {
+    int src_i = 0,
+        dest_i = 0, // for iteration
+        diff; // for comparison
+
+    while (word_c[src_i] != 0 && word->word[dest_i] != 0) { // while not at end of string
         if (isalnum(word_c[src_i])) { // if char is alphanumeric
-            if (word->word[dest_i] != tolower(word_c[src_i])) { // compare chars
-                match = false;
-                break;
+            diff = word->word[dest_i] - tolower(word_c[src_i]);
+            if (diff != 0) { // compare chars
+                return diff;
             }
             ++dest_i;
         }
         ++src_i;
     }
 
-    // at this point, we should be at the end of word
-    // i.e., word->word[dest_i] == 0
-    // so check that as well as the match
+    // now we're at the end of at least one word
+    // however, word_c may have trailing non-alphanumeric characters
+    // So let's skip past those
+    while (word_c[src_i] != 0 && !isalnum(word_c[src_i])) {
+        ++src_i;
+    }
 
-    return match && word->word[dest_i] == 0;
+    // at this point, if they're the same, we're at the end of both
+    // otherwise, we're at the end of one but not the other
+    // returning the same diff should do it
+
+    return word->word[dest_i] - tolower(word_c[src_i]);
 }
 
 void word_dispose(word_t *word) {
