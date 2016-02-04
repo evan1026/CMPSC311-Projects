@@ -51,17 +51,24 @@ void ll_insert_after(linked_list *list, ll_node_t *after, word_t *_word) {
     node->next = after->next;
     after->next = node;
 
+    if (after == list->tail) {
+        list->tail = node;
+    }
+
     list->count++;
 }
 
 void ll_count_word(linked_list *list, char *word) {
-    ll_node_t *found_node = ll_find(list, word);
+    ll_node_t *found_node = ll_find_place(list, word);
     word_t *word_to_insert;
 
-    if (found_node == NULL) { // not found - add it
-        word_to_insert = make_word(word); // starts count at 1 - no need to modify
-        ll_insert_end(list, word_to_insert);
-    } else {
+    if (found_node == NULL) { // not found and belongs at front
+        word_to_insert = make_word(word);
+        ll_insert_start(list, word_to_insert);
+    } else if (!word_matches(found_node->word, word)) { // not found, but comes after something
+        word_to_insert = make_word(word);
+        ll_insert_after(list, found_node, word_to_insert);
+    } else { // found
         found_node->word->count++;
     }
 }
@@ -70,6 +77,20 @@ ll_node_t *ll_find(linked_list *list, char *word) {
     ll_node_t *search = list->head;
 
     while (search != NULL && !word_matches(search->word, word)) {
+        search = search->next;
+    }
+
+    return search;
+}
+
+ll_node_t *ll_find_place(linked_list *list, char *word) {
+    ll_node_t *search = list->head;
+
+    if (list->head == NULL || word_cmp(list->head->word, word) > 0) {
+        return NULL;
+    }
+
+    while (search->next != NULL && word_cmp(search->next->word, word) <= 0) {
         search = search->next;
     }
 

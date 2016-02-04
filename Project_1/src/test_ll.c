@@ -6,7 +6,7 @@ static char* words[] = {
     "Apple",
     "apple",
     "ApPlE",
-    "a_p_p_l_e",
+    "_a_p_p_l_e_",
     "Hello",
     "from",
     "the",

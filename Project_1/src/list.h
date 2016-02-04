@@ -23,6 +23,7 @@ void ll_insert_after(linked_list *list, ll_node_t *after, word_t *word);
 //Higher level functions
 void ll_count_word(linked_list *list, char *word);
 ll_node_t *ll_find(linked_list *list, char *word);
+ll_node_t *ll_find_place(linked_list *list, char *word);
 
 //Cleanup
 void ll_dispose(linked_list *list);
