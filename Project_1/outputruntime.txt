@@ -1,1 +1,1 @@
-1084.25 ms
+The number of nanoseconds elapsed is 487679

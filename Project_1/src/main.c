@@ -51,11 +51,14 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error getting ending clock time");
     }
 
-    time_elapsed.tv_sec = end_time.tv_sec - start_time.tv_sec;
-    time_elapsed.tv_nsec = end_time.tv_nsec - start_time.tv_nsec;
+//    time_elapsed.tv_sec = end_time.tv_sec - start_time.tv_sec;
+    time_elapsed.tv_nsec = (end_time.tv_sec * 1000000000 + end_time.tv_nsec) -(start_time.tv_sec * 1000000000 + start_time.tv_nsec);
 
-    printf("The number of seconds elapsed is %ld\n", time_elapsed.tv_sec);
-    printf("The number of nanoseconds elapsed is %ld\n", time_elapsed.tv_nsec);
+//    printf("The number of seconds elapsed is %ld\n", time_elapsed.tv_sec);
+
+    if (fprintf(output_runtime, "The number of nanoseconds elapsed is %ld\n", time_elapsed.tv_nsec) == EOF){
+        fprintf(stderr, "Error printing to runtime output file");
+    }
 
     if (close_files(input_textfile, output_countfile, output_runtime)){
         printf("All files closed successfully\n");
