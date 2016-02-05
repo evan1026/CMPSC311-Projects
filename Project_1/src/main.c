@@ -14,6 +14,7 @@ int main(int argc, char *argv[]) {
     FILE *output_runtime = fopen(argv[3], "w");
     char input_word[10];
     linked_list words_list;
+    ll_node_t *curr = NULL;
 
     if (check_files(input_textfile, output_countfile, output_runtime)){
         printf("All files opened successfully");
@@ -23,12 +24,18 @@ int main(int argc, char *argv[]) {
 
     while (!feof(input_textfile)){
         fscanf(input_textfile, "%s", input_word);
-        printf("Adding word %s", input_word);
         ll_count_word(&words_list, input_word);
-        printf("\nAdded\n");
     }
 
+    curr = words_list.head;
 
+    while (curr != words_list.tail){
+        if (fputs(curr->word->word + curr->word->count, output_countfile) == EOF){
+            fprintf(stderr, "Error printing to countfile");
+        }
+        if (curr->next != NULL)
+            curr = curr->next;
+    }
 
 
     if (close_files(input_textfile, output_countfile, output_runtime)){
