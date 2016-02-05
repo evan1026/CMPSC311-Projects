@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include "list.h"
 
@@ -9,12 +10,20 @@ bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runt
 
 int main(int argc, char *argv[]) {
 
+    //TODO: Add checks for erraneous input when starting program
     FILE *input_textfile = fopen(argv[1], "r");
     FILE *output_countfile = fopen(argv[2], "w");
     FILE *output_runtime = fopen(argv[3], "w");
     char input_word[1024];
     linked_list words_list;
     ll_node_t *curr = NULL;
+    struct timespec *start_time = NULL;
+    struct timespec *end_time = NULL;
+    struct timespec *time_elapsed = NULL; 
+
+    if (clock_gettime(CLOCK_REALTIME, start_time) == -1){
+        fprintf(stderr, "Error getting starting clocktime");
+    }
 
     if (check_files(input_textfile, output_countfile, output_runtime)){
         printf("All files opened successfully\n");
@@ -38,6 +47,15 @@ int main(int argc, char *argv[]) {
         curr = curr->next;
     }
 
+    if (clock_gettime(CLOCK_REALTIME, end_time) == -1){
+        fprintf(stderr, "Error getting ending clock time");
+    }
+
+    time_elapsed->tv_sec = end_time->tv_sec - start_time->tv_sec;
+    time_elapsed->tv_nsec = end_time->tv_nsec - start_time->tv_nsec;
+
+    printf("The number of seconds elapsed is %ld", time_elapsed->tv_sec);
+    printf("The number of nanoseconds elapsed is %ld", time_elapsed->tv_nsec);
 
     if (close_files(input_textfile, output_countfile, output_runtime)){
         printf("All files closed successfully\n");
