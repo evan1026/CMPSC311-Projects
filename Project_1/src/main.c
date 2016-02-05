@@ -64,6 +64,8 @@ int main(int argc, char *argv[]) {
         printf("All files closed successfully\n");
     }
 
+    ll_dispose(&words_list);
+
     return 0;
 }
 
