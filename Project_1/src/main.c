@@ -12,12 +12,14 @@ int main(int argc, char *argv[]) {
     FILE *input_textfile = fopen(argv[1], "r");
     FILE *output_countfile = fopen(argv[2], "w");
     FILE *output_runtime = fopen(argv[3], "w");
-    char input_word[10];
+    char input_word[1024];
     linked_list words_list;
     ll_node_t *curr = NULL;
 
     if (check_files(input_textfile, output_countfile, output_runtime)){
-        printf("All files opened successfully");
+        printf("All files opened successfully\n");
+    } else {
+        return 1;
     }
 
     ll_init(&words_list);
@@ -29,17 +31,16 @@ int main(int argc, char *argv[]) {
 
     curr = words_list.head;
 
-    while (curr != words_list.tail){
-        if (fputs(curr->word->word + curr->word->count, output_countfile) == EOF){
+    while (curr != NULL) {
+        if (fprintf(output_countfile, "%s, %d\n", curr->word->word, curr->word->count) == EOF){
             fprintf(stderr, "Error printing to countfile");
         }
-        if (curr->next != NULL)
-            curr = curr->next;
+        curr = curr->next;
     }
 
 
     if (close_files(input_textfile, output_countfile, output_runtime)){
-        printf("All files closed successfully");
+        printf("All files closed successfully\n");
     }
 
     return 0;
@@ -53,7 +54,7 @@ bool check_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runt
     if (input_textfile == NULL){
         fprintf(stderr, "Can't open input textfile\n");
         opened_successfully = false;
-    } 
+    }
 
     if (output_countfile == NULL){
         fprintf(stderr, "Can't open output countfile\n");
