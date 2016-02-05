@@ -64,10 +64,10 @@ void ll_count_word(linked_list *list, char *word) {
 
     if (found_node == NULL) { // not found and belongs at front
         word_to_insert = make_word(word);
-        ll_insert_start(list, word_to_insert);
+        if (word_to_insert) ll_insert_start(list, word_to_insert);
     } else if (!word_matches(found_node->word, word)) { // not found, but comes after something
         word_to_insert = make_word(word);
-        ll_insert_after(list, found_node, word_to_insert);
+        if (word_to_insert) ll_insert_after(list, found_node, word_to_insert);
     } else { // found
         found_node->word->count++;
     }

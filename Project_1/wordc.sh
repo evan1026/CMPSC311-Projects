@@ -44,13 +44,17 @@ while read -r line || [[ -n "$line" ]]; do
   for word in $line; do
 
     # this "clean word" is the word stripped of any symbols and converted to lowercase
-    cleanword=$(echo $word | tr -cd '[[:alnum:]]' | tr '[:upper:]' '[:lower:]')
+    cleanword=$(echo $word | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
-    # if we've seen the word before, increase the count. otherwise, declare it as counted once
-    if [ -z "${words[$cleanword]}" ]; then
-      words[$cleanword]=1
-    else
-      words[$cleanword]=$((${words[$cleanword]} + 1))
+    # if the cleaned word actually has anything in it
+    if [ -n "$cleanword" ]; then
+
+      # if we've seen the word before, increase the count. otherwise, declare it as counted once
+      if [ -z "${words[$cleanword]}" ]; then
+        words[$cleanword]=1
+      else
+        words[$cleanword]=$((${words[$cleanword]} + 1))
+      fi
     fi
 
   done

@@ -23,6 +23,11 @@ word_t *make_word(char *word_c) {
     out->word = new_word;
     out->count = 1; // If we're making the word, it's safe to assume we've found it, and it's the first time
 
+    if (dest_i == 0) {
+        word_dispose(out);
+        out = NULL;
+    }
+
     return out;
 }
 
