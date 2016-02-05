@@ -65,7 +65,7 @@ done | sort > $outputcountfile
 
 # lastly, let's get the runtime information, and convert it to milliseconds to make it more relatable
 end=$(date +%s%N)
-diff=$(echo "scale=2; ($end - $start) / 1000000" | bc -l)
+diff=$((end - start))
 
 # and then write it to the file
-echo $diff ms > $outputruntimefile
+echo The number of nanoseconds elapsed is $diff > $outputruntimefile
