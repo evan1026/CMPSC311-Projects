@@ -23,8 +23,8 @@ facilities, and perhaps others). The reason for asking you to implement
 the same application in two different ways is three-fold: (i) to help you
 appreciate very concretely the relative pros and cons of C and shell programming,
 (ii) to make you think of how you might want to combine
-the “best of both” (for you to think on your own, no submission required
-for such a “hybrid” solution), (iii) to understand how the performance of
+the "best of both" (for you to think on your own, no submission required
+for such a "hybrid" solution), (iii) to understand how the performance of
 these two implementations compares for some selected inputs. Through
 this excercise, hopefully, you will begin to develop an appreciation for the
 ease-of-implementation vs. performance efficiency trade-offs that systems
@@ -34,7 +34,7 @@ Next we present some specifics:
  * The C executable, named `wordc`, should be used as follows:
 
   `$ ./wordc input-textfile output-countfile output-runtime`
-  
+
   The shell implementation must be in the form of a shell script named
 `wordc.sh`, that should be invoked as follows:
 
@@ -51,8 +51,8 @@ help the user understand what went wrong in case they made a mistake in usage.
 `cat` are equivalent). You are to ignore all characters other than alphabets
 and numerals. In particular, you are to ignore punctuation
 marks and not consider them parts of words (which will simplify
-your job quite a lot). So `Cat’s` and `Cat!` should be treated
-as `cats` and `cat`, respectively, whereas `‘‘Chairman Meow’’` becomes
+your job quite a lot). So `Cat's` and `Cat!` should be treated
+as `cats` and `cat`, respectively, whereas `"Chairman Meow"` becomes
 `Chairman` and `Meow`.
 
  * Your C program must create a sorted linked list of structs, one for
