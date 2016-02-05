@@ -17,11 +17,11 @@ int main(int argc, char *argv[]) {
     char input_word[1024];
     linked_list words_list;
     ll_node_t *curr = NULL;
-    struct timespec *start_time = NULL;
-    struct timespec *end_time = NULL;
-    struct timespec *time_elapsed = NULL; 
+    struct timespec start_time;
+    struct timespec end_time;
+    struct timespec time_elapsed;
 
-    if (clock_gettime(CLOCK_REALTIME, start_time) == -1){
+    if (clock_gettime(CLOCK_REALTIME, &start_time) == -1){
         fprintf(stderr, "Error getting starting clocktime");
     }
 
@@ -47,15 +47,15 @@ int main(int argc, char *argv[]) {
         curr = curr->next;
     }
 
-    if (clock_gettime(CLOCK_REALTIME, end_time) == -1){
+    if (clock_gettime(CLOCK_REALTIME, &end_time) == -1){
         fprintf(stderr, "Error getting ending clock time");
     }
 
-    time_elapsed->tv_sec = end_time->tv_sec - start_time->tv_sec;
-    time_elapsed->tv_nsec = end_time->tv_nsec - start_time->tv_nsec;
+    time_elapsed.tv_sec = end_time.tv_sec - start_time.tv_sec;
+    time_elapsed.tv_nsec = end_time.tv_nsec - start_time.tv_nsec;
 
-    printf("The number of seconds elapsed is %ld", time_elapsed->tv_sec);
-    printf("The number of nanoseconds elapsed is %ld", time_elapsed->tv_nsec);
+    printf("The number of seconds elapsed is %ld\n", time_elapsed.tv_sec);
+    printf("The number of nanoseconds elapsed is %ld\n", time_elapsed.tv_nsec);
 
     if (close_files(input_textfile, output_countfile, output_runtime)){
         printf("All files closed successfully\n");
