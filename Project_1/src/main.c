@@ -10,10 +10,9 @@ bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runt
 
 int main(int argc, char *argv[]) {
 
-    //TODO: Add checks for erraneous input when starting program
-    FILE *input_textfile = fopen(argv[1], "r");
-    FILE *output_countfile = fopen(argv[2], "w");
-    FILE *output_runtime = fopen(argv[3], "w");
+    FILE *input_textfile = NULL;
+    FILE *output_countfile = NULL; 
+    FILE *output_runtime = NULL;
     char input_word[1024];
     linked_list words_list;
     ll_node_t *curr = NULL;
@@ -21,10 +20,23 @@ int main(int argc, char *argv[]) {
     struct timespec end_time;
     struct timespec time_elapsed;
 
+    //checks for erraneous input
+    if (argv[1] != NULL && argv[2] != NULL && argv[3] != NULL && argv[4] == NULL){
+        input_textfile = fopen(argv[1], "r");
+        output_countfile = fopen(argv[2], "w");
+        output_runtime = fopen(argv[3], "w");
+    } else{
+        printf("Erraneous input supplied\n");
+        printf("The program should be run with ./wordc input_textfile output_countfile output_runtime\n");
+        return 1;
+    }
+
+    //checks to make sure start time is correctly obtained
     if (clock_gettime(CLOCK_REALTIME, &start_time) == -1){
         fprintf(stderr, "Error getting starting clocktime");
     }
 
+    //checks to make sure all files are opened correctly
     if (check_files(input_textfile, output_countfile, output_runtime)){
         printf("All files opened successfully\n");
     } else {
@@ -33,6 +45,7 @@ int main(int argc, char *argv[]) {
 
     ll_init(&words_list);
 
+    //read all words from the file and add them to the linked list
     while (!feof(input_textfile)){
         fscanf(input_textfile, "%s", input_word);
         ll_count_word(&words_list, input_word);
@@ -40,6 +53,7 @@ int main(int argc, char *argv[]) {
 
     curr = words_list.head;
 
+    //prints each word and its count to the output file and checks for errors each time
     while (curr != NULL) {
         if (fprintf(output_countfile, "%s, %d\n", curr->word->word, curr->word->count) == EOF){
             fprintf(stderr, "Error printing to countfile");
@@ -47,21 +61,24 @@ int main(int argc, char *argv[]) {
         curr = curr->next;
     }
 
+    //chechs to make sure the end time is correctly obtained
     if (clock_gettime(CLOCK_REALTIME, &end_time) == -1){
         fprintf(stderr, "Error getting ending clock time");
     }
 
-//    time_elapsed.tv_sec = end_time.tv_sec - start_time.tv_sec;
+    //calculates time elapsed
     time_elapsed.tv_nsec = (end_time.tv_sec * 1000000000 + end_time.tv_nsec) -(start_time.tv_sec * 1000000000 + start_time.tv_nsec);
 
-//    printf("The number of seconds elapsed is %ld\n", time_elapsed.tv_sec);
-
+    //outputs time elapsed to files and checks if it's outputted correctly
     if (fprintf(output_runtime, "The number of nanoseconds elapsed is %ld\n", time_elapsed.tv_nsec) == EOF){
         fprintf(stderr, "Error printing to runtime output file");
     }
 
+    //checks to make sure all files were closed succesfully
     if (close_files(input_textfile, output_countfile, output_runtime)){
         printf("All files closed successfully\n");
+    } else{
+        return 1;
     }
 
     ll_dispose(&words_list);
