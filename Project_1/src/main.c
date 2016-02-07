@@ -67,12 +67,14 @@ int main(int argc, char *argv[]) {
     }
 
     //calculates time elapsed
-    time_elapsed.tv_nsec = (end_time.tv_sec * 1000000000 + end_time.tv_nsec) -(start_time.tv_sec * 1000000000 + start_time.tv_nsec);
+    time_elapsed.tv_nsec = (end_time.tv_sec * 1000000000 + end_time.tv_nsec) - (start_time.tv_sec * 1000000000 + start_time.tv_nsec);
 
     //outputs time elapsed to files and checks if it's outputted correctly
     if (fprintf(output_runtime, "The number of nanoseconds elapsed is %ld\n", time_elapsed.tv_nsec) == EOF){
         fprintf(stderr, "Error printing to runtime output file");
     }
+    
+    ll_dispose(&words_list);
 
     //checks to make sure all files were closed succesfully
     if (close_files(input_textfile, output_countfile, output_runtime)){
@@ -80,9 +82,7 @@ int main(int argc, char *argv[]) {
     } else{
         return 1;
     }
-
-    ll_dispose(&words_list);
-
+    
     return 0;
 }
 
