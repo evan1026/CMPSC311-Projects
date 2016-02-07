@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     struct timespec time_elapsed;
 
     //checks for erraneous input
-    if (argv[1] != NULL && argv[2] != NULL && argv[3] != NULL && argv[4] == NULL){
+    if (argc == 4){
         input_textfile = fopen(argv[1], "r");
         output_countfile = fopen(argv[2], "w");
         output_runtime = fopen(argv[3], "w");
