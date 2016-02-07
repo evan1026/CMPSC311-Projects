@@ -20,13 +20,13 @@ int main(int argc, char *argv[]) {
     struct timespec end_time;
     struct timespec time_elapsed;
 
-    //checks for erraneous input
+    //checks for erroneous input
     if (argc == 4){
         input_textfile = fopen(argv[1], "r");
         output_countfile = fopen(argv[2], "w");
         output_runtime = fopen(argv[3], "w");
     } else{
-        printf("Erraneous input supplied\n");
+        printf("Erroneous input supplied\n");
         printf("The program should be run with ./wordc input_textfile output_countfile output_runtime\n");
         return 1;
     }
