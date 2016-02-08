@@ -1,13 +1,43 @@
+/********************************************************************************
+ * ~~~~~~~~~~                                                                   *
+ * ~ word.c ~                                                                   *
+ * ~~~~~~~~~~                                                                   *
+ *                                                                              *
+ * This file contains code dealing with the word_t struct, which holds a word   *
+ * and its count. A utility function called make_word() is provided that will   *
+ * automatically create a word_t from a string, and it will strip out any non-  *
+ * alphanumeric characters. This function allocates the object on the heap, so  *
+ * it is important that the user call word_dispose() later on if they choose to *
+ * use this function. This function will free both the word itself as well as   *
+ * the string contained within.                                                 *
+ *                                                                              *
+ * Typical usage:                                                               *
+ *     word_t *word = make_word("cake");                                        *
+ *     // do stuff                                                              *
+ *     word_dispose(word);                                                      *
+ ********************************************************************************/
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
 
 #include "word.h"
 
+/*
+ * ~~~
+ * ~ make_word() ~
+ * ~~~
+ *
+ * This function creates a word_t object (on the heap) representing the string
+ * given as its parameter. It will automatically remove non-alphanumeric
+ * characters and change all letters to lowercase. If, after these alterations,
+ * the string is empty, it will return NULL.
+ *
+ *
+ */
 word_t *make_word(char *word_c) {
-    word_t *out = (word_t *) malloc(sizeof(word_t));
-    size_t string_length = strlen(word_c) + 1;
-    char *new_word = (char *) malloc(sizeof(char) * string_length); // new string to allow for manipulation
+    word_t *out  = (word_t *) malloc(sizeof(word_t));
+    char *new_word = (char *) malloc(sizeof(char) * (str_len(word_c) + 1)); // new string to allow for manipulation
     int src_i = 0,
         dest_i = 0; // for iteration
 
@@ -35,6 +65,7 @@ bool word_matches(word_t *word, char *word_c) {
     return word_cmp(word, word_c) == 0;
 }
 
+//works like strcmp
 int word_cmp(word_t *word, char *word_c) {
     int src_i = 0,
         dest_i = 0, // for iteration
