@@ -20,52 +20,21 @@ checkArg() {
 start=$(date +%s%N)
 
 # renaming the arguments for convenience
-inputfile=$1
-outputcountfile=$2
-outputruntimefile=$3
+inputfile="$1"
+outputcountfile="$2"
+outputruntimefile="$3"
 
 # checking to ensure all arguments were supplied
-checkArg $inputfile
-checkArg $outputcountfile
-checkArg $outputruntimefile
+checkArg "$inputfile"
+checkArg "$outputcountfile"
+checkArg "$outputruntimefile"
 
 # checking to make sure there's no extraneous arguments
 if [ -n "$4" ]; then
   die
 fi
 
-# this creates an associative array that will store the occurances of each word
-declare -A words
-
-# reading the file
-while read -r line || [[ -n "$line" ]]; do
-
-  # reading the words in a line
-  for word in $line; do
-
-    # this "clean word" is the word stripped of any symbols and converted to lowercase
-    cleanword=$(echo $word | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')
-
-    # if the cleaned word actually has anything in it
-    if [ -n "$cleanword" ]; then
-
-      # if we've seen the word before, increase the count. otherwise, declare it as counted once
-      if [ -z "${words[$cleanword]}" ]; then
-        words[$cleanword]=1
-      else
-        words[$cleanword]=$((${words[$cleanword]} + 1))
-      fi
-    fi
-
-  done
-
-# "done" ends the loop and the rest prints the file to stdin so it can be read by "read" back where the while was declared
-done < "$inputfile"
-
-# now we create the output, sort it, and write it to the output file
-for word in "${!words[@]}"; do
-  echo $word, ${words[$word]}
-done | sort > $outputcountfile
+cat "$inputfile" | tr -cd '[:alnum:][:blank:]\n' | awk -f "./awkprog.awk" | sort > "$outputcountfile"
 
 # lastly, let's get the runtime information, and convert it to milliseconds to make it more relatable
 end=$(date +%s%N)
