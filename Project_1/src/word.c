@@ -37,7 +37,7 @@
  */
 word_t *make_word(char *word_c) {
     word_t *out  = (word_t *) malloc(sizeof(word_t));
-    char *new_word = (char *) malloc(sizeof(char) * (str_len(word_c) + 1)); // new string to allow for manipulation
+    char *new_word = (char *) malloc(sizeof(char) * (strlen(word_c) + 1)); // new string to allow for manipulation
     int src_i = 0,
         dest_i = 0; // for iteration
 
