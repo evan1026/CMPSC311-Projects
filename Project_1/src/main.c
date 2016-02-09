@@ -11,7 +11,7 @@ bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runt
 int main(int argc, char *argv[]) {
 
     FILE *input_textfile = NULL;
-    FILE *output_countfile = NULL; 
+    FILE *output_countfile = NULL;
     FILE *output_runtime = NULL;
     char input_word[1024];
     linked_list words_list;
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     if (fprintf(output_runtime, "The number of nanoseconds elapsed is %ld\n", time_elapsed.tv_nsec) == EOF){
         fprintf(stderr, "Error printing to runtime output file");
     }
-    
+
     ll_dispose(&words_list);
 
     //checks to make sure all files were closed succesfully
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
     } else{
         return 1;
     }
-    
+
     return 0;
 }
 

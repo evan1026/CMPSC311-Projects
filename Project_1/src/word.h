@@ -18,9 +18,10 @@ typedef struct word_t {
 
 // function names are pretty intuitive
 // for full docs, see word.c
-word_t *make_word(char *word_c);
+word_t *make_word(const char *word_c);
 bool word_matches(const word_t *word, const char *word_c);
-int word_cmp(const word_t *word, const char* word_c);
+int word_cmp_c(const word_t *word, const char* word_c);
+int word_cmp(const word_t *word1, const word_t *word2);
 void word_dispose(word_t *word);
 
 #endif

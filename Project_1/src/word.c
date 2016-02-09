@@ -19,6 +19,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 
 #include "word.h"
@@ -35,7 +36,7 @@
  *
  *
  */
-word_t *make_word(char *word_c) {
+word_t *make_word(const char *word_c) {
     word_t *out  = (word_t *) malloc(sizeof(word_t));
     char *new_word = (char *) malloc(sizeof(char) * (strlen(word_c) + 1)); // new string to allow for manipulation
     int src_i = 0,
@@ -61,12 +62,12 @@ word_t *make_word(char *word_c) {
     return out;
 }
 
-bool word_matches(word_t *word, char *word_c) {
-    return word_cmp(word, word_c) == 0;
+bool word_matches(const word_t *word, const char *word_c) {
+    return word_cmp_c(word, word_c) == 0;
 }
 
 //works like strcmp
-int word_cmp(word_t *word, char *word_c) {
+int word_cmp_c(const word_t *word, const char *word_c) {
     int src_i = 0,
         dest_i = 0, // for iteration
         diff; // for comparison
@@ -94,6 +95,10 @@ int word_cmp(word_t *word, char *word_c) {
     // returning the same diff should do it
 
     return word->word[dest_i] - tolower(word_c[src_i]);
+}
+
+int word_cmp(const word_t *word1, const word_t *word2) {
+    return strcmp(word1->word, word2->word);
 }
 
 void word_dispose(word_t *word) {

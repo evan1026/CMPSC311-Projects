@@ -303,11 +303,11 @@ ll_node_t *ll_find(const linked_list *list, const char *word) {
 ll_node_t *ll_find_place(const linked_list *list, const char *word) {
     ll_node_t *search = list->head;
 
-    if (list->head == NULL || word_cmp(list->head->word, word) > 0) {
+    if (list->head == NULL || word_cmp_c(list->head->word, word) > 0) {
         return NULL;
     }
 
-    while (search->next != NULL && word_cmp(search->next->word, word) <= 0) {
+    while (search->next != NULL && word_cmp_c(search->next->word, word) <= 0) {
         search = search->next;
     }
 
