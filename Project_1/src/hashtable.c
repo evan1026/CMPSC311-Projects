@@ -5,6 +5,7 @@
 
 #include "hashtable.h"
 
+// this file heavily based on https://gist.github.com/tonious/1377667
 
 /* Create a new hashtable. */
 hashtable_t *ht_create( const int size ) {

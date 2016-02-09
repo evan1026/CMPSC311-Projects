@@ -307,6 +307,7 @@ void ll_dispose(linked_list *list) {
     }
 }
 
+// this function heavily based on http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
 void ll_sort(linked_list *list) {
     ll_node_t *p, *q, *e;
     int insize, nmerges, psize, qsize, i;
