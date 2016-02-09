@@ -1,3 +1,4 @@
+//TODO update comments
 /******************************************************************************
  * ~~~~~~~~~~                                                                 *
  * ~ list.c ~                                                                 *
@@ -36,10 +37,12 @@
  *       than the user, used the interface incorrectly.                       *
  ******************************************************************************/
 
+#define _XOPEN_SOURCE 500
+
 #include <stdlib.h>
+#include <string.h>
 
 #include "list.h"
-#include "word.h"
 
 /*******************************************************************************
  * ~~~~~~~~~~~~~                                                               *
@@ -93,10 +96,10 @@ void ll_init(linked_list *list) {
  *       modify it later since it becomes part of the list, so that is      *
  *       why it's not marked as const here                                  *
  ****************************************************************************/
-void ll_insert_start(linked_list *list, word_t *word) {
+void ll_insert_start(linked_list *list, const char *word) {
     ll_node_t *node = (ll_node_t *) malloc(sizeof(ll_node_t));
 
-    node->word = word;
+    node->word = strdup(word);
     node->next = list->head;
 
     list->head = node;
@@ -132,10 +135,10 @@ void ll_insert_start(linked_list *list, word_t *word) {
  *       modify it later since it becomes part of the list, so that is    *
  *       why it's not marked as const here                                *
  **************************************************************************/
-void ll_insert_end(linked_list *list, word_t *word) {
+void ll_insert_end(linked_list *list, const char *word) {
     ll_node_t *node = (ll_node_t *) malloc(sizeof(ll_node_t));
 
-    node->word = word;
+    node->word = strdup(word);
     node->next = NULL;
 
     if (list->tail != NULL) {
@@ -177,10 +180,10 @@ void ll_insert_end(linked_list *list, word_t *word) {
  *       modify it later since it becomes part of the list, so that is        *
  *       why it's not marked as const here                                    *
  ******************************************************************************/
-void ll_insert_after(linked_list *list, ll_node_t *after, word_t *word) {
+void ll_insert_after(linked_list *list, ll_node_t *after, const char *word) {
     ll_node_t *node = (ll_node_t *) malloc(sizeof(ll_node_t));
 
-    node->word = word;
+    node->word = strdup(word);
     node->next = after->next;
     after->next = node;
 
@@ -189,53 +192,6 @@ void ll_insert_after(linked_list *list, ll_node_t *after, word_t *word) {
     }
 
     list->count++;
-}
-
-/******************************************************************************
- * ~~~~~~~~~~~~~~~~~~~                                                        *
- * ~ ll_count_word() ~                                                        *
- * ~~~~~~~~~~~~~~~~~~~                                                        *
- *                                                                            *
- * Uses the list to count a word, as per the assignment                       *
- * Using this function is preferable to the insertion methods above           *
- *                                                                            *
- * Arguments:                                                                 *
- *     list (linked_list *) - the list to use to count                        *
- *     word (char *)        - the word to count                               *
- *                                                                            *
- * Preconditions:                                                             *
- *     - list and word point to a valid list and string respectively          *
- *     - word points to a string that is a single word (not strictly needed   *
- *       for the function to run, however it's worth noting that the function *
- *       won't split words for you, although it will ignore non-alphanumeric  *
- *       characters)                                                          *
- *     - the words in list are in alphabetical order (i.e., this function was *
- *       the only one used to insert words to this list)                      *
- *                                                                            *
- * Postconditions:                                                            *
- *     - word will exist in the list and will have a count that is one more   *
- *       than before calling the function (assuming that not in the list      *
- *       counts as a count of 0)                                              *
- *     - word will be placed in the list based on it's alphabetical order     *
- *                                                                            *
- * Warnings:                                                                  *
- *     - if the list is not in alphabetical order, the word may be duplicated *
- *       in the list, so if you're going to use this function to insert, only *
- *       use this function                                                    *
- ******************************************************************************/
-void ll_count_word(linked_list *list, char *word) {
-    ll_node_t *found_node = ll_find_place(list, word);
-    word_t *word_to_insert;
-
-    if (found_node == NULL) { // not found and belongs at front
-        word_to_insert = make_word(word);
-        if (word_to_insert) ll_insert_start(list, word_to_insert);
-    } else if (!word_matches(found_node->word, word)) { // not found, but comes after something
-        word_to_insert = make_word(word);
-        if (word_to_insert) ll_insert_after(list, found_node, word_to_insert);
-    } else { // found
-        found_node->word->count++;
-    }
 }
 
 /*************************************************************************
@@ -265,7 +221,7 @@ void ll_count_word(linked_list *list, char *word) {
 ll_node_t *ll_find(const linked_list *list, const char *word) {
     ll_node_t *search = list->head;
 
-    while (search != NULL && !word_matches(search->word, word)) {
+    while (search != NULL && strcmp(search->word, word) != 0) {
         search = search->next;
     }
 
@@ -303,11 +259,11 @@ ll_node_t *ll_find(const linked_list *list, const char *word) {
 ll_node_t *ll_find_place(const linked_list *list, const char *word) {
     ll_node_t *search = list->head;
 
-    if (list->head == NULL || word_cmp_c(list->head->word, word) > 0) {
+    if (list->head == NULL || strcmp(list->head->word, word) > 0) {
         return NULL;
     }
 
-    while (search->next != NULL && word_cmp_c(search->next->word, word) <= 0) {
+    while (search->next != NULL && strcmp(search->next->word, word) <= 0) {
         search = search->next;
     }
 
@@ -343,10 +299,87 @@ void ll_dispose(linked_list *list) {
     ll_node_t *temp;
 
     while (list->head != NULL) {
-        word_dispose(list->head->word);
+        free(list->head->word);
 
         temp = list->head;
         list->head = list->head->next;
         free(temp);
+    }
+}
+
+void ll_sort(linked_list *list) {
+    ll_node_t *p, *q, *e;
+    int insize, nmerges, psize, qsize, i;
+
+    /*
+     * Silly special case: if `list' was passed in as NULL, return
+     * NULL immediately.
+     */
+    if (!list)
+        return;
+
+    insize = 1;
+
+    while (1) {
+        p = list->head;
+        list->head = NULL;
+        list->tail = NULL;
+
+        nmerges = 0;  /* count number of merges we do in this pass */
+
+        while (p) {
+            nmerges++;  /* there exists a merge to be done */
+            /* step `insize' places along from p */
+            q = p;
+            psize = 0;
+            for (i = 0; i < insize; i++) {
+                psize++;
+
+                q = q->next;
+                if (!q) break;
+            }
+
+            /* if q hasn't fallen off end, we have two lists to merge */
+            qsize = insize;
+
+            /* now we have two lists; merge them */
+            while (psize > 0 || (qsize > 0 && q)) {
+                /* decide whether next element of merge comes from p or q */
+                if (psize == 0) {
+                    /* p is empty; e must come from q. */
+                    e = q; q = q->next; qsize--;
+                } else if (qsize == 0 || !q) {
+                    /* q is empty; e must come from p. */
+                    e = p; p = p->next; psize--;
+                } else if (strcmp(p->word, q->word) <= 0) {
+                    /* First element of p is lower (or same);
+                     * e must come from p. */
+                    e = p; p = p->next; psize--;
+                } else {
+                    /* First element of q is lower; e must come from q. */
+                    e = q; q = q->next; qsize--;
+                }
+
+                /* add the next element to the merged list */
+                if (list->tail) {
+                    list->tail->next = e;
+                } else {
+                    list->head = e;
+                }
+                list->tail = e;
+            }
+
+            /* now p has stepped `insize' places along, and q has too */
+            p = q;
+        }
+
+        list->tail->next = NULL;
+
+        /* If we have done only one merge, we're finished. */
+        if (nmerges <= 1)   /* allow for nmerges==0, the empty list case */
+            return;
+
+        /* Otherwise repeat, merging lists twice the size */
+        insize *= 2;
     }
 }

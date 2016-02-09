@@ -2,11 +2,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <string.h>
+#include <ctype.h>
 
 #include "list.h"
+#include "hashtable.h"
 
 bool check_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
 bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
+char *clean_word(char *word);
 
 int main(int argc, char *argv[]) {
 
@@ -19,6 +23,7 @@ int main(int argc, char *argv[]) {
     struct timespec start_time;
     struct timespec end_time;
     struct timespec time_elapsed;
+    hashtable_t *hashtable = ht_create(65536);
 
     //checks for erroneous input
     if (argc == 4){
@@ -47,15 +52,29 @@ int main(int argc, char *argv[]) {
 
     //read all words from the file and add them to the linked list
     while (!feof(input_textfile)){
+        char *temp_word;
+
         fscanf(input_textfile, "%s", input_word);
-        ll_count_word(&words_list, input_word);
+
+        temp_word = clean_word(input_word);
+        if (temp_word != NULL){
+            int result = ht_get(hashtable, temp_word);
+            if (result == -1) {
+                ht_set(hashtable, temp_word, 1);
+                ll_insert_start(&words_list, temp_word);
+            } else {
+                ht_set(hashtable, temp_word, result + 1);
+            }
+            free(temp_word);
+        }
     }
 
+    ll_sort(&words_list);
     curr = words_list.head;
 
     //prints each word and its count to the output file and checks for errors each time
     while (curr != NULL) {
-        if (fprintf(output_countfile, "%s, %d\n", curr->word->word, curr->word->count) == EOF){
+        if (fprintf(output_countfile, "%s, %d\n", curr->word, ht_get(hashtable, curr->word)) == EOF){
             fprintf(stderr, "Error printing to countfile");
         }
         curr = curr->next;
@@ -75,6 +94,7 @@ int main(int argc, char *argv[]) {
     }
 
     ll_dispose(&words_list);
+    ht_dispose(hashtable);
 
     //checks to make sure all files were closed succesfully
     if (close_files(input_textfile, output_countfile, output_runtime)){
@@ -132,4 +152,29 @@ bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runt
 
     return closed_successfully;
 
+}
+
+char *clean_word(char *word) {
+    int length = strlen(word) + 1;
+    char *out = malloc(sizeof(char) * length);
+    if (out == NULL) return NULL;
+    int src_i = 0,
+        dest_i = 0;
+
+    while (word[src_i] != 0) {
+        if (isalnum(word[src_i])) { // if char is alphanumeric
+            out[dest_i] = tolower(word[src_i]); // set char to lowercase and copy
+            ++dest_i;
+        }
+        ++src_i;
+    }
+
+    if (dest_i == 0) {
+        free(out);
+        out = NULL;
+    } else {
+        out[dest_i] = 0; // add null char
+    }
+
+    return out;
 }

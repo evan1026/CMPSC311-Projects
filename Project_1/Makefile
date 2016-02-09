@@ -6,7 +6,7 @@ SDIR = src
 # These next few lines were made with the help of stackoverflow
 # They automatically generate build rules for object files and store them in the build folder
 # This is just to keep the main directory from becoming cluttered
-OBJS = $(ODIR)/word.o $(ODIR)/list.o
+OBJS = $(ODIR)/word.o $(ODIR)/list.o $(ODIR)/hashtable.o
 TEST_LL_OBJS = $(OBJS) $(ODIR)/test_ll.o
 MAIN_OBJS = $(OBJS) $(ODIR)/main.o
 
