@@ -33,16 +33,14 @@ hashtable_t *ht_create( const int size ) {
 }
 
 /* Hash a string for a particular hash table. */
+// hash from http://stackoverflow.com/questions/7666509/hash-function-for-string
 int ht_hash( hashtable_t *hashtable, const char *key ) {
 
-    unsigned long int hashval = 0;
-    int i = 0;
+    unsigned long int hashval = 5381;
+    int c;
 
-    /* Convert our string to an integer */
-    while( hashval < ULONG_MAX && i < strlen( key ) ) {
-        hashval = hashval << 8;
-        hashval += key[ i ];
-        i++;
+    while ((c = *key++)) {
+        hashval = ((hashval << 5) + hashval) + c; /* hash * 33 + c */
     }
 
     return hashval % hashtable->size;
