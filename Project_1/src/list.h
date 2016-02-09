@@ -33,6 +33,6 @@ void ll_dispose(linked_list *list);
 // Higher level functions - fulls docs on each function in word.c
 void ll_count_word(linked_list *list, char *word);
 ll_node_t *ll_find(const linked_list *list, const char *word);
-ll_node_t *ll_find_place(linked_list *list, char *word);
+ll_node_t *ll_find_place(const linked_list *list, const char *word);
 
 #endif
