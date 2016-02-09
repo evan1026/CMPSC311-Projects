@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # prints the usage for this file
 printUsage() {
   echo "Usage: $0 <input file> <output count file> <output runtime file>"
@@ -34,7 +36,20 @@ if [ -n "$4" ]; then
   die
 fi
 
-cat "$inputfile" | tr -cd '[:alnum:][:blank:]\n' | awk -f "./awkprog.awk" | sort > "$outputcountfile"
+awkprog='
+{
+    for (i = 1; i <= NF; i++) {
+        words[tolower($i)]++;
+    }
+}
+END {
+    for (i in words) {
+        print i ", " words[i];
+    }
+}
+'
+
+cat "$inputfile" | tr -cd '[:alnum:][:blank:]\n' | awk "$awkprog" | sort > "$outputcountfile"
 
 # lastly, let's get the runtime information, and convert it to milliseconds to make it more relatable
 end=$(date +%s%N)
