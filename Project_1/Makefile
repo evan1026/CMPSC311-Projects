@@ -4,12 +4,11 @@ CFLAGS ?= -c -Wall -Werror -g -std=gnu99
 ODIR = build
 SDIR = src
 
+#needed for cse machines, which have glibc version < 2.17
 LIBC_VER := $(shell ldd --version | head -n 1 | awk '{print $$(NF)}')
 LIBC_VER_MAJOR := $(shell echo $(LIBC_VER) | cut -f1 -d.)
 LIBC_VER_MINOR := $(shell echo $(LIBC_VER) | cut -f2 -d.)
 LIBC_LT_2_17 := $(shell [ $(LIBC_VER_MAJOR) -lt 2 -o \( $(LIBC_VER_MAJOR) -eq 2 -a $(LIBC_VER_MINOR) -lt 17 \) ] && echo true)
-
-#needed for cse machines, which have glibc version < 2.17
 LFLAGS =
 ifeq ($(LIBC_LT_2_17),true)
 	LFLAGS += -lrt
