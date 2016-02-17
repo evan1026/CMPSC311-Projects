@@ -1,6 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
-#include <limits.h>
 #include <string.h>
 
 #include "hashtable.h"
@@ -130,6 +128,7 @@ int ht_get( hashtable_t *hashtable, const char *key ) {
 
 }
 
+/* Free up the memory in a hashtable */
 void ht_dispose( hashtable_t *hashtable ) {
     if (hashtable == NULL) return;
 

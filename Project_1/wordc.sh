@@ -36,6 +36,9 @@ if [ -n "$4" ]; then
   die
 fi
 
+# The script that will be run by awk
+# Basically it just grabs each word sent to it (symbols have already been stripped)
+#   and it increases it's count in an associative array
 awkprog='
 {
     for (i = 1; i <= NF; i++) {
@@ -49,6 +52,7 @@ END {
 }
 '
 
+# Execute the script
 cat "$inputfile" | tr -cd '[:alnum:][:blank:]\n' | awk "$awkprog" | sort > "$outputcountfile"
 
 # lastly, let's get the runtime information, and convert it to milliseconds to make it more relatable

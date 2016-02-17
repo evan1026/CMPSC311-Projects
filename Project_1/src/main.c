@@ -8,9 +8,9 @@
 #include "list.h"
 #include "hashtable.h"
 
-bool check_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
+bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime);
 bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
-char *clean_word(char *word);
+char *clean_word(const char *word);
 
 int main(int argc, char *argv[]) {
 
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 }
 
 //Checks if all the input and output files were opened successfully
-bool check_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime){
+bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime){
 
     bool opened_successfully = true;
 
@@ -154,7 +154,9 @@ bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runt
 
 }
 
-char *clean_word(char *word) {
+// removes all symbols from a word and puts it to lowercase, then
+// returns the new word
+char *clean_word(const char *word) {
     int length = strlen(word) + 1;
     char *out = malloc(sizeof(char) * length);
     if (out == NULL) return NULL;

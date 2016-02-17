@@ -1,4 +1,3 @@
-//TODO update comments
 /******************************************************************************
  * ~~~~~~~~~~                                                                 *
  * ~ list.c ~                                                                 *
@@ -6,9 +5,9 @@
  *                                                                            *
  * This file contains the code governing the function of the linked list      *
  * used in this project. This list contains nodes, each of which has a        *
- * word object (which keeps track of the string and its count). The list      *
- * also keeps track of the first and last nodes in the list, as well as       *
- * how many nodes there are in total.                                         *
+ * string and a pointer to the next node. The list also keeps track of the    *
+ * first and last nodes in the list, as well as how many nodes there are in   *
+ * total.                                                                     *
  *                                                                            *
  * It is up to the caller to create an object of type linked_list, but a      *
  * function is provided to initialize the list, namely ll_init(). This        *
@@ -21,14 +20,10 @@
  *     linked_list list;                                                      *
  *     ll_init(&list);                                                        *
  *     while (there are words to count) {                                     *
- *         ll_count_word(&list, word);                                        *
+ *         ll_insert_start(&list, word);                                      *
  *     }                                                                      *
  *     // do something with the data                                          *
  *     ll_dispose(&list);                                                     *
- *                                                                            *
- * It is also possible for the user to use the lower-level ll_insert_*()      *
- * functions, however, these will not keep the words in alphabetical order,   *
- * as per the assignment requirements.                                        *
  *                                                                            *
  * Note: A number of these functions take in pointers but do not check to     *
  *       ensure they point to valid data. This was chosen because the only    *
@@ -36,8 +31,6 @@
  *       even then, the program ought to crash, as the programmer, rather     *
  *       than the user, used the interface incorrectly.                       *
  ******************************************************************************/
-
-#define _XOPEN_SOURCE 500
 
 #include <stdlib.h>
 #include <string.h>
@@ -77,14 +70,14 @@ void ll_init(linked_list *list) {
  * ~ ll_insert_start() ~                                                    *
  * ~~~~~~~~~~~~~~~~~~~~~                                                    *
  *                                                                          *
- * Inserts a word_t into the list at the very beginning                     *
+ * Inserts a word into the list at the very beginning                       *
  *                                                                          *
  * Arguments:                                                               *
- *     list  (linked_list *) - the list to insert into                      *
- *     word (word_t *)       - the word to insert                           *
+ *     list (linked_list *) - the list to insert into                       *
+ *     word (char *)        - the word to insert                            *
  *                                                                          *
  * Preconditions:                                                           *
- *     - both list and word point to valid structs of their corresponding   *
+ *     - both list and word point to valid data of their corresponding      *
  *       types that have been fully initialized                             *
  *                                                                          *
  * Postconditions:                                                          *
@@ -92,9 +85,7 @@ void ll_init(linked_list *list) {
  *       count will be updated                                              *
  *                                                                          *
  * Warnings:                                                                *
- *     - while this function does not modify word, ll_count_word() can      *
- *       modify it later since it becomes part of the list, so that is      *
- *       why it's not marked as const here                                  *
+ *     - a new node is allocated on the heap                                *
  ****************************************************************************/
 void ll_insert_start(linked_list *list, const char *word) {
     ll_node_t *node = (ll_node_t *) malloc(sizeof(ll_node_t));
@@ -116,14 +107,14 @@ void ll_insert_start(linked_list *list, const char *word) {
  * ~ ll_insert_end() ~                                                    *
  * ~~~~~~~~~~~~~~~~~~~                                                    *
  *                                                                        *
- * Inserts a word_t into the list at the very end                         *
+ * Inserts a word into the list at the very end                           *
  *                                                                        *
  * Arguments:                                                             *
- *     list  (linked_list *) - the list to insert into                    *
- *     word (word_t *)       - the word to insert                         *
+ *     list (linked_list *) - the list to insert into                     *
+ *     word (char *)        - the word to insert                          *
  *                                                                        *
  * Preconditions:                                                         *
- *     - both list and word point to valid structs of their corresponding *
+ *     - both list and word point to valid data of their corresponding    *
  *       types that have been fully initialized                           *
  *                                                                        *
  * Postconditions:                                                        *
@@ -131,9 +122,7 @@ void ll_insert_start(linked_list *list, const char *word) {
  *       count will be updated                                            *
  *                                                                        *
  * Warnings:                                                              *
- *     - while this function does not modify word, ll_count_word() can    *
- *       modify it later since it becomes part of the list, so that is    *
- *       why it's not marked as const here                                *
+ *     - a new node is allocated on the heap                              *
  **************************************************************************/
 void ll_insert_end(linked_list *list, const char *word) {
     ll_node_t *node = (ll_node_t *) malloc(sizeof(ll_node_t));
@@ -160,15 +149,15 @@ void ll_insert_end(linked_list *list, const char *word) {
  * ~ ll_insert_after() ~                                                      *
  * ~~~~~~~~~~~~~~~~~~~~~                                                      *
  *                                                                            *
- * Inserts a word_t into the list after a given node                          *
+ * Inserts a word into the list after a given node                            *
  *                                                                            *
  * Arguments:                                                                 *
  *     list  (linked_list *) - the list to insert into                        *
  *     after (ll_node_t *)   - the node to insert after                       *
- *     word  (word_t *)      - the word to insert                             *
+ *     word  (char *)        - the word to insert                             *
  *                                                                            *
  * Preconditions:                                                             *
- *     - list, word, and after point to valid structs of their corresponding  *
+ *     - list, word, and after point to valid data of their corresponding     *
  *       types that have been fully initialized                               *
  *                                                                            *
  * Postconditions:                                                            *
@@ -176,9 +165,7 @@ void ll_insert_end(linked_list *list, const char *word) {
  *       will be updated                                                      *
  *                                                                            *
  * Warnings:                                                                  *
- *     - while this function does not modify word, ll_count_word() can        *
- *       modify it later since it becomes part of the list, so that is        *
- *       why it's not marked as const here                                    *
+ *     - a new node is allocated on the heap                                  *
  ******************************************************************************/
 void ll_insert_after(linked_list *list, ll_node_t *after, const char *word) {
     ll_node_t *node = (ll_node_t *) malloc(sizeof(ll_node_t));
@@ -211,12 +198,6 @@ void ll_insert_after(linked_list *list, ll_node_t *after, const char *word) {
  *                                                                       *
  * Preconditions:                                                        *
  *     - list and word are valid pointers to their respective types      *
- *                                                                       *
- * Postconditions:                                                       *
- *     - none                                                            *
- *                                                                       *
- * Warnings:                                                             *
- *     - none                                                            *
  *************************************************************************/
 ll_node_t *ll_find(const linked_list *list, const char *word) {
     ll_node_t *search = list->head;
@@ -246,11 +227,7 @@ ll_node_t *ll_find(const linked_list *list, const char *word) {
  *                                                                           *
  * Preconditions:                                                            *
  *     - list and word are valid pointers to their respective types          *
- *     - list is sorted in lexigraphical order (i.e., ll_count_word() is all *
- *       that was used to insert values)                                     *
- *                                                                           *
- * Postconditions:                                                           *
- *     - none                                                                *
+ *     - list is sorted in lexigraphical order                               *
  *                                                                           *
  * Warnings:                                                                 *
  *     - if the list is not sorted, the return value is essentially          *
@@ -282,16 +259,16 @@ ll_node_t *ll_find_place(const linked_list *list, const char *word) {
  *     - list (linked_list *) - the list to clean up                          *
  *                                                                            *
  * Preconditions:                                                             *
- *     - list is a valid list with all of its members on the heap (as they    *
- *       will be if these ll_count_word() is used to add members)             *
+ *     - list is a valid list with all of its members on the heap (they will  *
+ *       be as long as these functions are used to modify it)                 *
  *                                                                            *
  * Postconditions:                                                            *
  *     - all memory associated with the nodes of the list will be freed       *
  *                                                                            *
  * Warnings:                                                                  *
  *     - if the nodes were allocated on the stack rather than the heap, it    *
- *       could create issues, so please only use ll_count_word() unless you   *
- *       know what you're doing                                               *
+ *       could create issues, so only use these functions to deal with a      *
+ *       linked list                                                          *
  *     - the list struct itself must still be freed if it was initially       *
  *       malloc'd                                                             *
  ******************************************************************************/
@@ -307,7 +284,21 @@ void ll_dispose(linked_list *list) {
     }
 }
 
-// this function heavily based on http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
+/*****************************************************************************************
+ * ~~~~~~~~~~~~~                                                                         *
+ * ~ ll_sort() ~                                                                         *
+ * ~~~~~~~~~~~~~                                                                         *
+ *                                                                                       *
+ * Sorts a linked list using a specialized version of merge sort                         *
+ * This code is very heavily based on a linked list merge sort algorithm found online.   *
+ * Original code at http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html *
+ *                                                                                       *
+ * Arguments:                                                                            *
+ *     - list (linked_list *) - the list to sort                                         *
+ *                                                                                       *
+ * Postconditions:                                                                       *
+ *     - The list, if it had any members at all, will have all of its members sorted     *
+ *****************************************************************************************/
 void ll_sort(linked_list *list) {
     ll_node_t *p, *q, *e;
     int insize, nmerges, psize, qsize, i;
@@ -316,7 +307,7 @@ void ll_sort(linked_list *list) {
      * Silly special case: if `list' was passed in as NULL, return
      * NULL immediately.
      */
-    if (!list)
+    if (!list || !list->head)
         return;
 
     insize = 1;
