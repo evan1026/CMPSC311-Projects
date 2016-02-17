@@ -73,9 +73,18 @@ More detailed info can be found within the files themselves, but here is a basic
 ### Experience / Problems
 When we first wrote the code, both the script and the C program were running on the scale of seconds. The C program was faster, at around 2 seconds, with the shell program taking 30 seconds or more. Then, we switched the shell file from associative arrays to an awk script. This sped up the script so much it was going faster than the C program. As a result, we had to add the hashtable to the C program, because it changed the program from an `O(n^2)` algorithm to an `O(n log n)` one (the `n log n` came entirely from the sort; adding a word was `O(1)`, where it had previously been `O(n)`). This is why the hashtable is there; to give the C program a fighting chance. It still follows the specifications in that it still makes a sorted linked list of words in which each word appears once, but it no longer tries to keep it sorted at runtime. As a result of all of this, you should find that, on a modern machine, both programs will probably run in under a second, and the C program will be a bit faster than the shell script (although you won't be able to see the difference except on large files).
 
-Overall, the experience was what it was meant to be: the C programming took a lot more work, but, when done right, it produced quicker code. Shell scripting, on the other hand, took very little work, but produced slower programs.
+Overall, the experience was what it was meant to be: the C programming took a lot more work, but, when done right, it usually produced quicker code. Shell scripting, on the other hand, took very little work, but produced slower programs (on average).
 
-As far as what might go wrong, the program handles ASCII text just fine, but has issues with UTF-8. The `arabian nights` file has some UTF-8 characters in it, and, as a result, the count file had a bunch of numbers at the top which did not seem to correspond to numbers in the actual file. We believe this is because of the UTF-8 characters, as we are just handling each byte as a `char`, whereas UTF-8 doesn't adhere to that.
+As far as what might go wrong, the program handles ASCII text just fine, but has issues with UTF-8. The `arabian nights` file has some UTF-8 characters in it, and, as a result, the count file has a bunch of weirdness in it in terms of the words it counted. We believe this is because of the UTF-8 characters, as we are just handling each byte as a `char`, whereas UTF-8 doesn't adhere to that.
 
 ### Performance
-#### TODO
+Detailed data can be found [here](https://docs.google.com/spreadsheets/d/1JBodb-8XbEzZUGps0m7X3rZ9rvaAuZqKTN0ExtJW1HE/edit?usp=sharing).
+
+Based on the data, it would seem that the C program, even after adding the hash table, still is somewhat inferior to awk. For the smaller files (`pangur ban` and `hamlet`), it did better than the shell file, but as the files got bigger and bigger, the time for the shell file increased less than that of the C program, to the point where the shell file ran faster than the C program for `arabian nights`. Data is as follows:
+
+|                             | Pangur Ban |   Hamlet  | Arabian Nights |
+|-----------------------------|-----------:|----------:|---------------:|
+| C Program Time (ms)         |   0.601049 | 27.389497 |     195.495435 |
+| Shell Script Time (ms)      |  12.033269 | 34.495352 |     151.149759 |
+| Difference (Shell - C) (ms) |  11.432219 |  7.105855 |     -44.345675 |
+| Winner                      | C Program  | C Program | Shell Script   |
