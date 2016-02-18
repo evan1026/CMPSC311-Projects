@@ -40,7 +40,7 @@
 /*******************************************************************************
  * ~~~~~~~~~~~~~                                                               *
  * ~ ll_init() ~                                                               *
- * ~~~~~~~~~~~~~                                                               *                                                              *
+ * ~~~~~~~~~~~~~                                                               *
  *                                                                             *
  * This function initializes a linked list object to it's initial, empty state *
  *                                                                             *

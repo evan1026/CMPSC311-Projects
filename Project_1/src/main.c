@@ -8,6 +8,18 @@
 #include "list.h"
 #include "hashtable.h"
 
+/**********************************************************************
+ * One question you might ask after reading this and the makefile is, *
+ * "Why put so much effort into clock_gettime()?"                     *
+ *                                                                    *
+ * Well, it turns out that gettimeofday() has a maximum resolution of *
+ * microseconds and, more importantly, has no guarantee that the time *
+ * will always increase, because it uses system time, which can be    *
+ * changed by a system administrator. clock_gettime(), however, uses  *
+ * the actual hardware time, so it will always increase between       *
+ * subsequent calls.                                                  *
+ **********************************************************************/
+
 bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime);
 bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
 char *clean_word(const char *word);
@@ -112,17 +124,17 @@ bool check_files(const FILE *input_textfile, const FILE *output_countfile, const
     bool opened_successfully = true;
 
     if (input_textfile == NULL){
-        fprintf(stderr, "Can't open input textfile\n");
+        fprintf(stderr, "Can't open input textfile. Please make sure the file exists and you have read permissions for it.\n");
         opened_successfully = false;
     }
 
     if (output_countfile == NULL){
-        fprintf(stderr, "Can't open output countfile\n");
+        fprintf(stderr, "Can't open output countfile. Please make sure you have write permissions to that location.\n");
         opened_successfully = false;
     }
 
     if (output_runtime == NULL){
-        fprintf(stderr, "Can't open output runtime file\n");
+        fprintf(stderr, "Can't open output runtime file. Please make sure you have write permissions to that location.\n");
         opened_successfully = false;
     }
 
@@ -171,7 +183,7 @@ char *clean_word(const char *word) {
         ++src_i;
     }
 
-    if (dest_i == 0) {
+    if (dest_i == 0) { // If it's empty, return null
         free(out);
         out = NULL;
     } else {

@@ -3,6 +3,8 @@
 
 # Project 1
 
+Written by Evan Allan and Michael Berezanich
+
 ### Assignment
 You will create two implementations of a `wordcount` application which
 does the following: it takes as input a large text file, finds out the number
@@ -68,8 +70,8 @@ More detailed info can be found within the files themselves, but here is a basic
  * `src/main.c` - The file containing the `main()` function.
                   This file handles I/O as well as measuring the time.
  * `src/list.*` - The header and c files associated with the linked list.
-                  The list itself does not handle counting, only keeping track of which words
-                  have been found. This is done in conjunction with a hashtable
+                  The list itself does not handle counting, only keeping track of which
+                  words have been found. This is done in conjunction with a hashtable
                   to speed up the program.
  * `src/hashtable.*` - The header and c files associated with the hashtable.
                        This is used to speed up the program (which was originally
@@ -84,14 +86,15 @@ scale of seconds. The C program was faster, at around 2 seconds, with the shell 
 taking 30 seconds or more. Then, we switched the shell file from associative arrays
 to an awk script. This sped up the script so much it was going faster than the C program.
 As a result, we had to add the hashtable to the C program, because it changed the program
-from an `O(n^2)` algorithm to an `O(n log n)` one (the `n log n` came entirely from the sort;
-adding a word was `O(1)`, where it had previously been `O(n)`). This is why the
+from an `O(n^2)` algorithm to an `O(n log n)` one (the `n log n` comes entirely from the sort;
+adding a word is `O(1)`, where it had previously been `O(n)`). This is why the
 hashtable is there; to give the C program a fighting chance. It still follows the
 specifications in that it still makes a sorted linked list of words in which each word
-appears once, but it no longer tries to keep it sorted at runtime. As a result of all
+appears once, but it no longer has to try to keep it sorted at runtime. As a result of all
 of this, you should find that, on a modern machine, both programs will probably run in
 under a second, and the C program will be a bit faster than the shell script
-(although you won't be able to see the difference except on large files).
+(although you won't be able to see the difference except on large files, but if they get
+too large the script wins again).
 
 Overall, the experience was what it was meant to be: the C programming took a lot more
 work, but, when done right, it usually produced quicker code. Shell scripting, on the

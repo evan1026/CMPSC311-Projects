@@ -32,7 +32,7 @@ hashtable_t *ht_create( const int size ) {
 }
 
 /* Hash a string for a particular hash table. */
-// hash from http://stackoverflow.com/questions/7666509/hash-function-for-string
+// hash function from http://stackoverflow.com/questions/7666509/hash-function-for-string
 int ht_hash( hashtable_t *hashtable, const char *key ) {
 
     unsigned long int hashval = 5381;
