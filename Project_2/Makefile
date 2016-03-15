@@ -3,6 +3,7 @@ CC ?= gcc
 CFLAGS ?= -c -Wall -Werror -g -std=gnu99
 ODIR = build
 SDIR = src
+EXE = wordc-mp
 
 #needed for cse machines, which have glibc version < 2.17
 LIBC_VER := $(shell ldd --version | head -n 1 | awk '{print $$(NF)}')
@@ -21,7 +22,7 @@ OBJS = $(ODIR)/list.o $(ODIR)/hashtable.o
 MAIN_OBJS = $(OBJS) $(ODIR)/main.o
 
 all: $(ODIR) $(MAIN_OBJS)
-	$(CC) $(LFLAGS) -o wordc $(MAIN_OBJS)
+	$(CC) $(LFLAGS) -o $(EXE) $(MAIN_OBJS)
 
 $(ODIR)/%.o: $(SDIR)/%.c
 	$(CC) $(LFLAGS) $(CFLAGS) -o $@ $<
@@ -29,7 +30,7 @@ $(ODIR)/%.o: $(SDIR)/%.c
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o test_ll wordc
+	rm -f $(ODIR)/*.o $(EXE)
 
 $(ODIR):
 	mkdir -p $(ODIR)
