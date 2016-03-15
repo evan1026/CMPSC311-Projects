@@ -66,18 +66,22 @@ int main(int argc, char *argv[]) {
     while (!feof(input_textfile)){
         char *temp_word;
 
-        fscanf(input_textfile, "%s", input_word);
+        int res = fscanf(input_textfile, "%s", input_word);
 
-        temp_word = clean_word(input_word);
-        if (temp_word != NULL){
-            int result = ht_get(hashtable, temp_word);
-            if (result == -1) {
-                ht_set(hashtable, temp_word, 1);
-                ll_insert_start(&words_list, temp_word);
-            } else {
-                ht_set(hashtable, temp_word, result + 1);
+        if (res == 1) {
+            temp_word = clean_word(input_word);
+
+            if (temp_word != NULL){
+                int result = ht_get(hashtable, temp_word);
+                if (result == -1) {
+                    ht_set(hashtable, temp_word, 1);
+                    ll_insert_start(&words_list, temp_word);
+                } else {
+                    ht_set(hashtable, temp_word, result + 1);
+                }
+                free(temp_word);
             }
-            free(temp_word);
+
         }
     }
 
