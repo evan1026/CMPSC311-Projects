@@ -1,1 +1,0 @@
-The number of nanoseconds elapsed is 27146950
