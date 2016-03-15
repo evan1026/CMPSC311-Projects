@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
         input_textfile = fopen(argv[1], "r");
         output_countfile = fopen(argv[2], "w");
         output_runtime = fopen(argv[3], "w");
-        numProcesses = argv[4];
+        num_processes = atoi(argv[4]);
     } else{
         printf("Erroneous input supplied\n");
         printf("The program should be run with ./wordc input_textfile output_countfile output_runtime number_of_processes\n");
