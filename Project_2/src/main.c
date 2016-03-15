@@ -4,6 +4,8 @@
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include "list.h"
 #include "hashtable.h"
@@ -37,6 +39,9 @@ int main(int argc, char *argv[]) {
     struct timespec time_elapsed;
     hashtable_t *hashtable = ht_create(65536);
     int num_processes = 0;
+    int proc_num; //The index of this process (used after forking)
+    int *child_pipes;
+    int fd_pipe[2];
 
     //checks for erroneous input
     if (argc == 5){
@@ -48,6 +53,11 @@ int main(int argc, char *argv[]) {
         printf("Erroneous input supplied\n");
         printf("The program should be run with ./wordc input_textfile output_countfile output_runtime number_of_processes\n");
         return 1;
+    }
+
+    if (num_processes < 1) {
+        printf("Number of processes must be at least 1.\n");
+        exit(1);
     }
 
     //checks to make sure start time is correctly obtained
@@ -63,6 +73,58 @@ int main(int argc, char *argv[]) {
     }
 
     ll_init(&words_list);
+
+    if (num_processes > 1) {
+        child_pipes = malloc(num_processes * sizeof(int));
+
+        for (proc_num = 0; proc_num < num_processes - 1; proc_num++) {
+            if (pipe(fd_pipe) == -1){
+                fprintf(stderr, "Could not create pipe for process index %d", proc_num);
+                perror("");
+                exit(1);
+            }
+
+            pid_t proc = fork();
+
+            if (proc == 0)
+                break;
+            else if (proc == -1) {
+                fprintf(stderr,"Could not fork process index %d", proc_num);
+                perror("");
+                exit(1);
+            }
+
+            //if we get here, we are parent
+            child_pipes[proc_num] = fd_pipe[0];
+            close(fd_pipe[1]); //close unused write end
+        }
+    } else {
+        proc_num = 0;
+    }
+
+    if (proc_num < num_processes - 1) { //then we are a child
+        close(fd_pipe[0]); //close unused read end
+        printf("I am child %d writing to pipe with fd %d\n", proc_num, fd_pipe[1]);
+        dprintf(fd_pipe[1], "I am child number %d.", proc_num);
+        close(fd_pipe[1]);
+        exit(0);
+    } else {
+        int dummy;
+        while (wait(&dummy) != -1) {
+            printf("A child exited with status %d\n", dummy);
+        }
+
+        int i;
+        char buffer[100];
+        for (i = 0; i < 100; i++) {
+            buffer[i] = 0;
+        }
+        for (i = 0; i < num_processes - 1; i++) {
+            read(child_pipes[i], buffer, 100);
+            printf("Child %d says: %s\n", i, buffer);
+        }
+        exit(0);
+    }
 
     //read all words from the file and add them to the linked list
     while (!feof(input_textfile)){
