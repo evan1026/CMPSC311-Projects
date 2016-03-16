@@ -18,7 +18,7 @@ endif
 # These next few lines were made with the help of stackoverflow
 # They automatically generate build rules for object files and store them in the build folder
 # This is just to keep the main directory from becoming cluttered
-OBJS = $(ODIR)/list.o $(ODIR)/hashtable.o
+OBJS = $(ODIR)/list.o $(ODIR)/hashtable.o $(ODIR)/elapsedtime.o
 MAIN_OBJS = $(OBJS) $(ODIR)/main.o
 
 all: $(ODIR) $(MAIN_OBJS)

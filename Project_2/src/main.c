@@ -9,18 +9,7 @@
 
 #include "list.h"
 #include "hashtable.h"
-
-/**********************************************************************
- * One question you might ask after reading this and the makefile is, *
- * "Why put so much effort into clock_gettime()?"                     *
- *                                                                    *
- * Well, it turns out that gettimeofday() has a maximum resolution of *
- * microseconds and, more importantly, has no guarantee that the time *
- * will always increase, because it uses system time, which can be    *
- * changed by a system administrator. clock_gettime(), however, uses  *
- * the actual hardware time, so it will always increase between       *
- * subsequent calls.                                                  *
- **********************************************************************/
+#include "elapsedtime.h"
 
 bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime);
 bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
@@ -34,9 +23,6 @@ int main(int argc, char *argv[]) {
     char input_word[1024];
     linked_list words_list;
     ll_node_t *curr = NULL;
-    struct timespec start_time;
-    struct timespec end_time;
-    struct timespec time_elapsed;
     hashtable_t *hashtable = ht_create(65536);
     int num_processes = 0;
     int proc_num; //The index of this process (used after forking)
@@ -51,7 +37,7 @@ int main(int argc, char *argv[]) {
         num_processes = atoi(argv[4]);
     } else{
         printf("Erroneous input supplied\n");
-        printf("The program should be run with ./wordc input_textfile output_countfile output_runtime number_of_processes\n");
+        printf("The program should be run with ./wordc-mp input_textfile output_countfile output_runtime number_of_processes\n");
         return 1;
     }
 
@@ -60,10 +46,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    //checks to make sure start time is correctly obtained
-    if (clock_gettime(CLOCK_REALTIME, &start_time) == -1){
-        fprintf(stderr, "Error getting starting clocktime");
-    }
+    start_clock();
 
     //checks to make sure all files are opened correctly
     if (check_files(input_textfile, output_countfile, output_runtime)){
@@ -160,16 +143,10 @@ int main(int argc, char *argv[]) {
         curr = curr->next;
     }
 
-    //chechs to make sure the end time is correctly obtained
-    if (clock_gettime(CLOCK_REALTIME, &end_time) == -1){
-        fprintf(stderr, "Error getting ending clock time");
-    }
-
-    //calculates time elapsed
-    time_elapsed.tv_nsec = (end_time.tv_sec * 1000000000 + end_time.tv_nsec) - (start_time.tv_sec * 1000000000 + start_time.tv_nsec);
+    end_clock();
 
     //outputs time elapsed to files and checks if it's outputted correctly
-    if (fprintf(output_runtime, "The number of nanoseconds elapsed is %ld\n", time_elapsed.tv_nsec) == EOF){
+    if (fprintf(output_runtime, "The number of nanoseconds elapsed is %ld\n", get_time_elapsed()) == EOF){
         fprintf(stderr, "Error printing to runtime output file");
     }
 
