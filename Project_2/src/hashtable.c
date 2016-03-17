@@ -120,7 +120,7 @@ int ht_get( hashtable_t *hashtable, const char *key ) {
 
     /* Did we actually find anything? */
     if( pair == NULL || pair->key == NULL || strcmp( key, pair->key ) != 0 ) {
-        return -1;
+        return 0;
 
     } else {
         return pair->value;

@@ -14,20 +14,23 @@
 bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime);
 bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
 char *clean_word(const char *word);
+void count_word(const char* word, hashtable_t *hashtable, linked_list *words_list, int occurances);
 
 int main(int argc, char *argv[]) {
 
     FILE *input_textfile = NULL;
     FILE *output_countfile = NULL;
     FILE *output_runtime = NULL;
+    FILE **child_pipes = NULL;
+    FILE *parent_pipe = NULL;
     char input_word[1024];
     linked_list words_list;
     ll_node_t *curr = NULL;
     hashtable_t *hashtable = ht_create(65536);
     int num_processes = 0;
-    int proc_num; //The index of this process (used after forking)
-    int *child_pipes;
+    int proc_num = 0; //The index of this process (used after forking)
     int fd_pipe[2];
+    long file_size = -1;
 
     //checks for erroneous input
     if (argc == 5){
@@ -43,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     if (num_processes < 1) {
         printf("Number of processes must be at least 1.\n");
-        exit(1);
+        return 1;
     }
 
     start_clock();
@@ -55,99 +58,96 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    //This code taken from http://stackoverflow.com/questions/238603/how-can-i-get-a-files-size-in-c
+    //Interestingly, it also fixes a bug we had where the child would start reading at an unpredictable place
+    //No idea why, but apparently the offset wasn't guarenteed to start at 0 for some reason
+    fseek(input_textfile, 0L, SEEK_END);
+    file_size = ftell(input_textfile);
+    fseek(input_textfile, 0L, 0);
+
     ll_init(&words_list);
 
     if (num_processes > 1) {
-        child_pipes = malloc(num_processes * sizeof(int));
+        child_pipes = malloc(num_processes * sizeof(FILE *));
+
+        if (child_pipes == NULL) {
+            perror("Could not reserve space for pipes.");
+            return 1;
+        }
 
         for (proc_num = 0; proc_num < num_processes - 1; proc_num++) {
             if (pipe(fd_pipe) == -1){
                 fprintf(stderr, "Could not create pipe for process index %d", proc_num);
                 perror("");
-                exit(1);
+                return 1;
             }
 
             pid_t proc = fork();
 
-            if (proc == 0)
+            if (proc == 0) {
+                parent_pipe = fdopen(fd_pipe[1], "w");
+                close(fd_pipe[0]); //close unused read end
                 break;
+            }
             else if (proc == -1) {
                 fprintf(stderr,"Could not fork process index %d", proc_num);
                 perror("");
-                exit(1);
+                return 1;
             }
 
             //if we get here, we are parent
-            child_pipes[proc_num] = fd_pipe[0];
+            child_pipes[proc_num] = fdopen(fd_pipe[0], "r");
             close(fd_pipe[1]); //close unused write end
         }
-    } else {
-        proc_num = 0;
-    }
-
-    if (proc_num < num_processes - 1) { //then we are a child
-        close(fd_pipe[0]); //close unused read end
-        printf("I am child %d writing to pipe with fd %d\n", proc_num, fd_pipe[1]);
-        dprintf(fd_pipe[1], "I am child number %d.", proc_num);
-        close(fd_pipe[1]);
-        exit(0);
-    } else {
-        int dummy;
-        while (wait(&dummy) != -1) {
-            printf("A child exited with status %d\n", dummy);
-        }
-
-        int i;
-        char buffer[100];
-        for (i = 0; i < 100; i++) {
-            buffer[i] = 0;
-        }
-        for (i = 0; i < num_processes - 1; i++) {
-            read(child_pipes[i], buffer, 100);
-            printf("Child %d says: %s\n", i, buffer);
-        }
-        exit(0);
     }
 
     //read all words from the file and add them to the linked list
     while (!feof(input_textfile)){
-        char *temp_word;
-
         int res = fscanf(input_textfile, "%s", input_word);
 
         if (res == 1) {
-            temp_word = clean_word(input_word);
+            count_word(input_word, hashtable, &words_list, 1);
+        }
+    }
 
-            if (temp_word != NULL){
-                int result = ht_get(hashtable, temp_word);
-                if (result == -1) {
-                    ht_set(hashtable, temp_word, 1);
-                    ll_insert_start(&words_list, temp_word);
-                } else {
-                    ht_set(hashtable, temp_word, result + 1);
+    if (proc_num < num_processes - 1) { //then we are a child
+        curr = words_list.head;
+        while (curr != NULL) {
+            fprintf(parent_pipe, "%s %d\n", curr->word, ht_get(hashtable, curr->word));
+            curr = curr->next;
+        }
+        fclose(parent_pipe);
+    } else {
+        char buffer[1024];
+        int count = -1;
+        while (wait(NULL) != -1) { //While not all children have exited
+            //go through and read what they've written to pipes, if anything
+            for (int i = 0; i < num_processes - 1; i++) {
+                while (fgets(buffer, 1024, child_pipes[i])) {
+                    sscanf(buffer, "%s%*[ ]%d%*[\n]", input_word, &count);
+                    printf("Parent: Child %d says: %s is %d\n", i, input_word, count);
+                    count_word(input_word, hashtable, &words_list, count);
                 }
-                free(temp_word);
             }
-
         }
-    }
 
-    ll_sort(&words_list);
-    curr = words_list.head;
+        ll_sort(&words_list);
+        curr = words_list.head;
 
-    //prints each word and its count to the output file and checks for errors each time
-    while (curr != NULL) {
-        if (fprintf(output_countfile, "%s, %d\n", curr->word, ht_get(hashtable, curr->word)) == EOF){
-            fprintf(stderr, "Error printing to countfile");
+        //prints each word and its count to the output file and checks for errors each time
+        while (curr != NULL) {
+            if (fprintf(output_countfile, "%s, %d\n", curr->word, ht_get(hashtable, curr->word)) == EOF){
+                fprintf(stderr, "Error printing to countfile");
+            }
+            curr = curr->next;
         }
-        curr = curr->next;
-    }
 
-    end_clock();
+        end_clock();
 
-    //outputs time elapsed to files and checks if it's outputted correctly
-    if (fprintf(output_runtime, "The number of nanoseconds elapsed is %ld\n", get_time_elapsed()) == EOF){
-        fprintf(stderr, "Error printing to runtime output file");
+        //outputs time elapsed to files and checks if it's outputted correctly
+        if (fprintf(output_runtime, "The number of nanoseconds elapsed is %ld\n", get_time_elapsed()) == EOF){
+            fprintf(stderr, "Error printing to runtime output file");
+        }
     }
 
     ll_dispose(&words_list);
@@ -161,6 +161,19 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
+}
+
+void count_word(const char* word, hashtable_t *hashtable, linked_list *words_list, int occurances) {
+    char *temp_word = clean_word(word);
+
+    if (temp_word != NULL){
+        int result = ht_get(hashtable, temp_word);
+        if (result == 0) {
+            ll_insert_start(words_list, temp_word);
+        }
+        ht_set(hashtable, temp_word, result + occurances);
+        free(temp_word);
+    }
 }
 
 //Checks if all the input and output files were opened successfully
