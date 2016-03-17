@@ -57,11 +57,13 @@ entry_t *ht_newpair( const char *key, const int value ) {
         free(newpair);
         return NULL;
     }
-    newpair->value = 1;
+    newpair->value = value;
     newpair->next = NULL;
 
     return newpair;
 }
+
+#include <stdio.h>
 
 /* Insert a key-value pair into a hash table. */
 void ht_set( hashtable_t *hashtable, const char *key, const int value ) {
@@ -86,7 +88,12 @@ void ht_set( hashtable_t *hashtable, const char *key, const int value ) {
 
     /* Nope, could't find it.  Time to grow a pair. */
     } else {
+
+//        printf("HASHTABLE - Making new slot for '%s',%d.\n", key, value);
+
         newpair = ht_newpair( key, value );
+
+//        printf("HASHTABLE - After creating, newpair has '%s'->%d.\n", newpair->key, newpair->value);
 
         /* We're at the start of the linked list in this bin. */
         if( next == hashtable->table[ bin ] ) {
@@ -102,6 +109,8 @@ void ht_set( hashtable_t *hashtable, const char *key, const int value ) {
             newpair->next = next;
             last->next = newpair;
         }
+
+//        printf("HASHTABLE - After adding, newpair has '%s'->%d.\n", newpair->key, newpair->value);
     }
 }
 

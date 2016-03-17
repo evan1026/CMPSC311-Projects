@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 
     //checks to make sure all files are opened correctly
     if (check_files(input_textfile, output_countfile, output_runtime)){
-        printf("All files opened successfully\n");
+//        printf("All files opened successfully\n");
     } else {
         return 1;
     }
@@ -91,15 +91,26 @@ int main(int argc, char *argv[]) {
     //No idea why, but apparently the offset wasn't guarenteed to start at 0 for some reason
     fseek(input_textfile, 0L, SEEK_END);
     file_size = ftell(input_textfile);
-    fseek(input_textfile, proc_num * (1.0 * file_size / num_processes), 0);
+
+    if (num_processes <= file_size) {
+        fseek(input_textfile, proc_num * (file_size / num_processes), 0);
+    } else {
+        if (proc_num == num_processes - 1) {
+            fseek(input_textfile, 0, 0);
+        } else {
+            fseek(input_textfile, 0, SEEK_END); //Shouldn't be needed, but I'm putting it anyway
+        }
+    }
 
     //read all words from the file and add them to the linked list
     if (file_size != 0) {
         //If we're not at the start of the file (proc_num != 0) then we're probably
         //in the middle of a word. Let's advance past it.
-        if (proc_num != 0) {
-            while (!isspace(c = fgetc(input_textfile)));
-            ungetc(c, input_textfile); //Put that non-whitespace char back, because we just removed it
+        if (proc_num != 0 && !(proc_num == num_processes - 1 && num_processes > file_size)) {
+            if (!isspace(c = fgetc(input_textfile))) {
+                fseek(input_textfile, -2, SEEK_CUR);
+                while (!isspace(c = fgetc(input_textfile)));
+            }
         }
 
         //Explaination of this mess of a while loop:
@@ -109,12 +120,15 @@ int main(int argc, char *argv[]) {
         //Going to the end originally used feof, but for some reason, that would cause the children to sometimes
         //(but not always and not even predictably) reach EOF before they've gotten through their portion
         //Doing it this way fixes this error
-        while ((proc_num < num_processes - 1 && ftell(input_textfile) < (proc_num + 1) * (1.0 * file_size / num_processes))
+        while ((proc_num < num_processes - 1 && ftell(input_textfile) < (proc_num + 1) * (file_size / num_processes))
                 || (proc_num == num_processes - 1 && ftell(input_textfile) < file_size)){
+
             int res = fscanf(input_textfile, "%s", input_word);
 
             if (res == 1) {
-                count_word(input_word, hashtable, &words_list, 1);
+                if (proc_num == num_processes - 1 || ftell(input_textfile) - strlen(input_word) < (proc_num + 1) * (file_size / num_processes)) {
+                    count_word(input_word, hashtable, &words_list, 1);
+                }
             } else if (res == EOF && errno != 0) {
                 perror("Error reading file: ");
                 exit(1);
@@ -128,6 +142,8 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
         }
+//        printf("Process %d counted 'wood' %d times. Last word at %ld. Started at %ld.\n", proc_num, ht_get(hashtable, "wood"), last_count_start, start);
+//        printf("Process %d: File size is %ld.\n", 999, file_size);
     }
 
     if (proc_num < num_processes - 1) { //then we are a child
@@ -146,8 +162,10 @@ int main(int argc, char *argv[]) {
                 while (fgets(buffer, 1024, child_pipes[i])) {
                     //Scanf string from http://stackoverflow.com/questions/12835360/whitespace-in-the-format-string-scanf
                     sscanf(buffer, "%s%*[ ]%d%*[\n]", input_word, &count);
- //                   printf("Parent: Child %d says: %s is %d\n", i, input_word, count);
+//                    if (strcmp(input_word, "i") == 0) printf("Parent: Child %d says: %s is %d\n", i, input_word, count);
+//                    printf("Before counting - '%s':'%d'\n", input_word, ht_get(hashtable, input_word));
                     count_word(input_word, hashtable, &words_list, count);
+//                    printf("After counting  - '%s':'%d'\n", input_word, ht_get(hashtable, input_word));
                 }
             }
         }
@@ -176,7 +194,7 @@ int main(int argc, char *argv[]) {
 
     //checks to make sure all files were closed succesfully
     if (close_files(input_textfile, output_countfile, output_runtime)){
-        printf("All files closed successfully\n");
+//        printf("All files closed successfully\n");
     } else{
         return 1;
     }
@@ -192,6 +210,7 @@ void count_word(const char* word, hashtable_t *hashtable, linked_list *words_lis
         if (result == 0) {
             ll_insert_start(words_list, temp_word);
         }
+//        printf("COUNTING - '%s' for %d occurances. Started at %d and will become %d.\n", temp_word, occurances, result, result + occurances);
         ht_set(hashtable, temp_word, result + occurances);
         free(temp_word);
     }
