@@ -13,7 +13,7 @@
 #include "elapsedtime.h"
 
 void handle_input(int argc, char *argv[], FILE **input_textfile, FILE **output_countfile, FILE **output_runtime, int *num_processes);
-bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime);
+void check_file(const FILE *file, const char *filename, bool read);
 bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
 char *clean_word(const char *word);
 void count_word(const char* word, hashtable_t *hashtable, linked_list *words_list, int occurances);
@@ -38,14 +38,13 @@ int main(int argc, char *argv[]) {
     //checks for erroneous input and opens files
     handle_input(argc, argv, &input_textfile, &output_countfile, &output_runtime, &num_processes);
 
-    start_clock();
+    //At this point, since we know we can successfull open the input file,
+    //we close it so we can open it in each process, as per what was found
+    //by asking the question at
+    //http://stackoverflow.com/questions/36069438/eof-reached-before-end-of-file/
+    fclose(input_textfile);
 
-    //checks to make sure all files are opened correctly
-    if (check_files(input_textfile, output_countfile, output_runtime)){
-//        printf("All files opened successfully\n");
-    } else {
-        return 1;
-    }
+    start_clock();
 
     ll_init(&words_list);
 
@@ -83,18 +82,23 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
-    input_textfile = fopen(argv[1], "rb");
+    //Open input file for read
+    input_textfile = fopen(argv[1], "r");
+    check_file(input_textfile, argv[1], true); //just in case
 
     //This code taken from http://stackoverflow.com/questions/238603/how-can-i-get-a-files-size-in-c
-    //Interestingly, it also fixes a bug we had where the child would start reading at an unpredictable place
-    //No idea why, but apparently the offset wasn't guarenteed to start at 0 for some reason
     fseek(input_textfile, 0L, SEEK_END);
     file_size = ftell(input_textfile);
 
+    //Now we find the place where we should start in the file
     if (num_processes <= file_size) {
+        //If the number of processes is <= the file size, there's no issue,
+        //so we just divide up the file equally
         fseek(input_textfile, proc_num * (file_size / num_processes), 0);
     } else {
+        //Otherwise, there's the issue where the start point for each process is the same
+        //(since num_processes / file_size == 0)
+        //So we just make the parent read the whole file and make the children do nothing
         if (proc_num == num_processes - 1) {
             fseek(input_textfile, 0, 0);
         } else {
@@ -104,8 +108,10 @@ int main(int argc, char *argv[]) {
 
     //read all words from the file and add them to the linked list
     if (file_size != 0) {
-        //If we're not at the start of the file (proc_num != 0) then we're probably
+        //If we're not at the start of the file then we're probably
         //in the middle of a word. Let's advance past it.
+        //The start of the file is either the parent if the number of processes
+        //is greaeter than the file size or the first child otherwise
         if (proc_num != 0 && !(proc_num == num_processes - 1 && num_processes > file_size)) {
             if (!isspace(c = fgetc(input_textfile))) {
                 fseek(input_textfile, -2, SEEK_CUR);
@@ -126,46 +132,47 @@ int main(int argc, char *argv[]) {
             int res = fscanf(input_textfile, "%s", input_word);
 
             if (res == 1) {
+                //So, now we've scanned something, but since fscanf skips whitespace, we have to
+                //make sure the actual start of the word was not after the cutoff
+                //This only matters if we're a child though; the parent can never go past the end
                 if (proc_num == num_processes - 1 || ftell(input_textfile) - strlen(input_word) < (proc_num + 1) * (file_size / num_processes)) {
                     count_word(input_word, hashtable, &words_list, 1);
                 }
             } else if (res == EOF && errno != 0) {
-                perror("Error reading file: ");
+                perror("Error reading file");
                 exit(1);
             } else if (res == EOF && ftell(input_textfile) < file_size) {
                 printf("Process %d found unexpected EOF at %ld.\n", proc_num, ftell(input_textfile));
                 exit(1);
             } else if (res == EOF && feof(input_textfile)){
+                //In this case, we got EOF when we were supposed to, so we
+                //want to exit the while loop normally
                 continue;
             } else {
                 printf("Scanf returned unexpected value: %d\n", res);
                 exit(1);
             }
         }
-//        printf("Process %d counted 'wood' %d times. Last word at %ld. Started at %ld.\n", proc_num, ht_get(hashtable, "wood"), last_count_start, start);
-//        printf("Process %d: File size is %ld.\n", 999, file_size);
     }
 
     if (proc_num < num_processes - 1) { //then we are a child
+        //Don't worry about sorting, just write out what we found
         curr = words_list.head;
         while (curr != NULL) {
             fprintf(parent_pipe, "%s %d\n", curr->word, ht_get(hashtable, curr->word));
             curr = curr->next;
         }
         fclose(parent_pipe);
-    } else {
+    } else { //We are the parent
         char buffer[1024];
         int count = -1;
         while (waitpid(-1, NULL, WNOHANG) != -1) { //While not all children have exited
             //go through and read what they've written to pipes, if anything
             for (int i = 0; i < num_processes - 1; i++) {
-                while (fgets(buffer, 1024, child_pipes[i])) {
+                while (fgets(buffer, 1024, child_pipes[i])) { //Each word is its own line, so scan by line
                     //Scanf string from http://stackoverflow.com/questions/12835360/whitespace-in-the-format-string-scanf
                     sscanf(buffer, "%s%*[ ]%d%*[\n]", input_word, &count);
-//                    if (strcmp(input_word, "i") == 0) printf("Parent: Child %d says: %s is %d\n", i, input_word, count);
-//                    printf("Before counting - '%s':'%d'\n", input_word, ht_get(hashtable, input_word));
                     count_word(input_word, hashtable, &words_list, count);
-//                    printf("After counting  - '%s':'%d'\n", input_word, ht_get(hashtable, input_word));
                 }
             }
         }
@@ -193,9 +200,7 @@ int main(int argc, char *argv[]) {
     ht_dispose(hashtable);
 
     //checks to make sure all files were closed succesfully
-    if (close_files(input_textfile, output_countfile, output_runtime)){
-//        printf("All files closed successfully\n");
-    } else{
+    if (!close_files(input_textfile, output_countfile, output_runtime)){
         return 1;
     }
 
@@ -210,34 +215,22 @@ void count_word(const char* word, hashtable_t *hashtable, linked_list *words_lis
         if (result == 0) {
             ll_insert_start(words_list, temp_word);
         }
-//        printf("COUNTING - '%s' for %d occurances. Started at %d and will become %d.\n", temp_word, occurances, result, result + occurances);
+
         ht_set(hashtable, temp_word, result + occurances);
         free(temp_word);
     }
 }
 
-//Checks if all the input and output files were opened successfully
-bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime){
+//Checks if a file was opened successfully
+void check_file(const FILE *file, const char *filename, bool read) {
 
-    bool opened_successfully = true;
+    static const char *readtext  = " and that it exists.\n";
+    static const char *writetext = ".\n";
 
-//    if (input_textfile == NULL){
-//        fprintf(stderr, "Can't open input textfile. Please make sure the file exists and you have read permissions for it.\n");
-//        opened_successfully = false;
-//    }
-
-    if (output_countfile == NULL){
-        fprintf(stderr, "Can't open output countfile. Please make sure you have write permissions to that location.\n");
-        opened_successfully = false;
+    if (file == NULL){
+        fprintf(stderr, "Can't open %s. Please make sure you have the correct permissions for that file%s", filename, (read ? readtext : writetext));
+        exit(1);
     }
-
-    if (output_runtime == NULL){
-        fprintf(stderr, "Can't open output runtime file. Please make sure you have write permissions to that location.\n");
-        opened_successfully = false;
-    }
-
-    return opened_successfully;
-
 }
 
 //Closes all the files and returns whether they all closed successfully
@@ -291,15 +284,28 @@ char *clean_word(const char *word) {
     return out;
 }
 
+//Makes all assignments based on command line input and checks for validity
 void handle_input(int argc, char *argv[], FILE **input_textfile, FILE **output_countfile, FILE **output_runtime, int *num_processes){
 
+    *input_textfile = NULL;
+    *output_countfile = NULL;
+    *output_runtime = NULL;
+    *num_processes = 0;
+
     if (argc == 5){
-//        *input_textfile = fopen(argv[1], "rb");
+        *input_textfile = fopen(argv[1], "r");
         *output_countfile = fopen(argv[2], "w");
         *output_runtime = fopen(argv[3], "w");
         *num_processes = atoi(argv[4]);
     } else{
         printf("Erroneous input supplied\n");
+
+        if (argc < 5) {
+            printf("Error: too few arguments.");
+        } else {
+            printf("Error: too many arguments.");
+        }
+
         printf("The program should be run with ./wordc-mp input_textfile output_countfile output_runtime number_of_processes\n");
         exit(1);
     }
@@ -308,4 +314,8 @@ void handle_input(int argc, char *argv[], FILE **input_textfile, FILE **output_c
         printf("Number of processes must be at least 1.\n");
         exit(1);
     }
+
+    check_file(*input_textfile, argv[1], true);
+    check_file(*output_countfile, argv[2], false);
+    check_file(*output_runtime, argv[3], false);
 }
