@@ -124,6 +124,7 @@ int main(int argc, char *argv[]) {
             //go through and read what they've written to pipes, if anything
             for (int i = 0; i < num_processes - 1; i++) {
                 while (fgets(buffer, 1024, child_pipes[i])) {
+                    //Scanf string from http://stackoverflow.com/questions/12835360/whitespace-in-the-format-string-scanf
                     sscanf(buffer, "%s%*[ ]%d%*[\n]", input_word, &count);
                     printf("Parent: Child %d says: %s is %d\n", i, input_word, count);
                     count_word(input_word, hashtable, &words_list, count);
