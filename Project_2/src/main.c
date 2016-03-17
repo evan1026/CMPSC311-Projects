@@ -6,12 +6,13 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 #include "list.h"
 #include "hashtable.h"
 #include "elapsedtime.h"
 
-void handle_input(int argc, char *argv[], FILE *input_textfile, FILE *output_countfile, FILE *output_runtime, int *num_processes);
+void handle_input(int argc, char *argv[], FILE **input_textfile, FILE **output_countfile, FILE **output_runtime, int *num_processes);
 bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime);
 bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
 char *clean_word(const char *word);
@@ -31,10 +32,11 @@ int main(int argc, char *argv[]) {
     int num_processes = 0;
     int proc_num = 0; //The index of this process (used after forking)
     int fd_pipe[2];
-//    long file_size = -1;   **Had to comment this out for file to compile**
+    long file_size = -1;
+    char c;
 
     //checks for erroneous input and opens files
-    handle_input(argc, argv, input_textfile, output_countfile, output_runtime, &num_processes);
+    handle_input(argc, argv, &input_textfile, &output_countfile, &output_runtime, &num_processes);
 
     start_clock();
 
@@ -44,13 +46,6 @@ int main(int argc, char *argv[]) {
     } else {
         return 1;
     }
-
-    //This code taken from http://stackoverflow.com/questions/238603/how-can-i-get-a-files-size-in-c
-    //Interestingly, it also fixes a bug we had where the child would start reading at an unpredictable place
-    //No idea why, but apparently the offset wasn't guarenteed to start at 0 for some reason
-    fseek(input_textfile, 0L, SEEK_END);
-//    file_size = ftell(input_textfile); **Had to comment this out to compile
-    fseek(input_textfile, 0L, 0);
 
     ll_init(&words_list);
 
@@ -88,12 +83,50 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    //read all words from the file and add them to the linked list
-    while (!feof(input_textfile)){
-        int res = fscanf(input_textfile, "%s", input_word);
 
-        if (res == 1) {
-            count_word(input_word, hashtable, &words_list, 1);
+    input_textfile = fopen(argv[1], "rb");
+
+    //This code taken from http://stackoverflow.com/questions/238603/how-can-i-get-a-files-size-in-c
+    //Interestingly, it also fixes a bug we had where the child would start reading at an unpredictable place
+    //No idea why, but apparently the offset wasn't guarenteed to start at 0 for some reason
+    fseek(input_textfile, 0L, SEEK_END);
+    file_size = ftell(input_textfile);
+    fseek(input_textfile, proc_num * (1.0 * file_size / num_processes), 0);
+
+    //read all words from the file and add them to the linked list
+    if (file_size != 0) {
+        //If we're not at the start of the file (proc_num != 0) then we're probably
+        //in the middle of a word. Let's advance past it.
+        if (proc_num != 0) {
+            while (!isspace(c = fgetc(input_textfile)));
+            ungetc(c, input_textfile); //Put that non-whitespace char back, because we just removed it
+        }
+
+        //Explaination of this mess of a while loop:
+        //  if we're a child process (proc_num < num_processes - 1), then loop until we make it to where the next
+        //  process would start (the ftell part)
+        //  if we're the parent (proc_num == num_processes - 1), loop until we reach the end of the file
+        //Going to the end originally used feof, but for some reason, that would cause the children to sometimes
+        //(but not always and not even predictably) reach EOF before they've gotten through their portion
+        //Doing it this way fixes this error
+        while ((proc_num < num_processes - 1 && ftell(input_textfile) < (proc_num + 1) * (1.0 * file_size / num_processes))
+                || (proc_num == num_processes - 1 && ftell(input_textfile) < file_size)){
+            int res = fscanf(input_textfile, "%s", input_word);
+
+            if (res == 1) {
+                count_word(input_word, hashtable, &words_list, 1);
+            } else if (res == EOF && errno != 0) {
+                perror("Error reading file: ");
+                exit(1);
+            } else if (res == EOF && ftell(input_textfile) < file_size) {
+                printf("Process %d found unexpected EOF at %ld.\n", proc_num, ftell(input_textfile));
+                exit(1);
+            } else if (res == EOF && feof(input_textfile)){
+                continue;
+            } else {
+                printf("Scanf returned unexpected value: %d\n", res);
+                exit(1);
+            }
         }
     }
 
@@ -107,13 +140,13 @@ int main(int argc, char *argv[]) {
     } else {
         char buffer[1024];
         int count = -1;
-        while (wait(NULL) != -1) { //While not all children have exited
+        while (waitpid(-1, NULL, WNOHANG) != -1) { //While not all children have exited
             //go through and read what they've written to pipes, if anything
             for (int i = 0; i < num_processes - 1; i++) {
                 while (fgets(buffer, 1024, child_pipes[i])) {
                     //Scanf string from http://stackoverflow.com/questions/12835360/whitespace-in-the-format-string-scanf
                     sscanf(buffer, "%s%*[ ]%d%*[\n]", input_word, &count);
-                    printf("Parent: Child %d says: %s is %d\n", i, input_word, count);
+ //                   printf("Parent: Child %d says: %s is %d\n", i, input_word, count);
                     count_word(input_word, hashtable, &words_list, count);
                 }
             }
@@ -169,10 +202,10 @@ bool check_files(const FILE *input_textfile, const FILE *output_countfile, const
 
     bool opened_successfully = true;
 
-    if (input_textfile == NULL){
-        fprintf(stderr, "Can't open input textfile. Please make sure the file exists and you have read permissions for it.\n");
-        opened_successfully = false;
-    }
+//    if (input_textfile == NULL){
+//        fprintf(stderr, "Can't open input textfile. Please make sure the file exists and you have read permissions for it.\n");
+//        opened_successfully = false;
+//    }
 
     if (output_countfile == NULL){
         fprintf(stderr, "Can't open output countfile. Please make sure you have write permissions to that location.\n");
@@ -239,12 +272,12 @@ char *clean_word(const char *word) {
     return out;
 }
 
-void handle_input(int argc, char *argv[], FILE *input_textfile, FILE *output_countfile, FILE *output_runtime, int *num_processes){
+void handle_input(int argc, char *argv[], FILE **input_textfile, FILE **output_countfile, FILE **output_runtime, int *num_processes){
 
     if (argc == 5){
-        input_textfile = fopen(argv[1], "r");
-        output_countfile = fopen(argv[2], "w");
-        output_runtime = fopen(argv[3], "w");
+//        *input_textfile = fopen(argv[1], "rb");
+        *output_countfile = fopen(argv[2], "w");
+        *output_runtime = fopen(argv[3], "w");
         *num_processes = atoi(argv[4]);
     } else{
         printf("Erroneous input supplied\n");

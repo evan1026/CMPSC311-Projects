@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]; then
+	echo "Usage: $0 path/to/wordc concurency" >&2
+	exit 1
+fi
+
+d=$(readlink -e "$(dirname "$0")")
+exe=$(readlink -e "$1")
+proccount=$2
+
+echo Starting unit tests
+
+outfile=$(mktemp)
+timefile=$(mktemp)
+anyfail=
+for i in {00..39}; do
+	rm -f "$outfile" "$timefile"
+
+	echo
+	echo "Running test $i ($(<"$d/tests/desc$i"))"
+
+	"$exe" "$d/tests/test$i.in" "$outfile" "$timefile" $proccount
+	if diff -iq "$outfile" "$d/tests/test$i.out.0" >&/dev/null ||
+			diff -iq "$outfile" "$d/tests/test$i.out.1" >&/dev/null; then
+		echo pass
+	else
+		echo FAIL
+		anyfail=1
+	fi
+done
+rm -f "$outfile" "$timefile"
+
+if [ -z "$anyfail" ]; then
+	echo "ALL PASS!"
+fi
