@@ -11,6 +11,7 @@
 #include "hashtable.h"
 #include "elapsedtime.h"
 
+void handle_input(int argc, char *argv[], FILE *input_textfile, FILE *output_countfile, FILE *output_runtime, int *num_processes);
 bool check_files(const FILE *input_textfile, const FILE *output_countfile, const FILE *output_runtime);
 bool close_files(FILE *input_textfile, FILE *output_countfile, FILE *output_runtime);
 char *clean_word(const char *word);
@@ -30,24 +31,10 @@ int main(int argc, char *argv[]) {
     int num_processes = 0;
     int proc_num = 0; //The index of this process (used after forking)
     int fd_pipe[2];
-    long file_size = -1;
+//    long file_size = -1;   **Had to comment this out for file to compile**
 
-    //checks for erroneous input
-    if (argc == 5){
-        input_textfile = fopen(argv[1], "r");
-        output_countfile = fopen(argv[2], "w");
-        output_runtime = fopen(argv[3], "w");
-        num_processes = atoi(argv[4]);
-    } else{
-        printf("Erroneous input supplied\n");
-        printf("The program should be run with ./wordc-mp input_textfile output_countfile output_runtime number_of_processes\n");
-        return 1;
-    }
-
-    if (num_processes < 1) {
-        printf("Number of processes must be at least 1.\n");
-        return 1;
-    }
+    //checks for erroneous input and opens files
+    handle_input(argc, argv, input_textfile, output_countfile, output_runtime, &num_processes);
 
     start_clock();
 
@@ -62,7 +49,7 @@ int main(int argc, char *argv[]) {
     //Interestingly, it also fixes a bug we had where the child would start reading at an unpredictable place
     //No idea why, but apparently the offset wasn't guarenteed to start at 0 for some reason
     fseek(input_textfile, 0L, SEEK_END);
-    file_size = ftell(input_textfile);
+//    file_size = ftell(input_textfile); **Had to comment this out to compile
     fseek(input_textfile, 0L, 0);
 
     ll_init(&words_list);
@@ -250,4 +237,23 @@ char *clean_word(const char *word) {
     }
 
     return out;
+}
+
+void handle_input(int argc, char *argv[], FILE *input_textfile, FILE *output_countfile, FILE *output_runtime, int *num_processes){
+
+    if (argc == 5){
+        input_textfile = fopen(argv[1], "r");
+        output_countfile = fopen(argv[2], "w");
+        output_runtime = fopen(argv[3], "w");
+        *num_processes = atoi(argv[4]);
+    } else{
+        printf("Erroneous input supplied\n");
+        printf("The program should be run with ./wordc-mp input_textfile output_countfile output_runtime number_of_processes\n");
+        exit(1);
+    }
+
+    if (*num_processes < 1) {
+        printf("Number of processes must be at least 1.\n");
+        exit(1);
+    }
 }
