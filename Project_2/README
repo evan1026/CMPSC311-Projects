@@ -47,23 +47,26 @@ strlen() - gets string length
 isalnum() - determines if a character is alphanumeric
 tolower() - returns the lowercase version of a character
 atoi() - converts a string to an integer
+fprintf() - prints formatted data to a file
+fdopen() - creates a file pointer from a file descriptor
+close() - like fclose(), but for a file descriptor
 
 
 Design Choices
 One interesting choice we made (in project 1 but it still applies) is that we used a hashtable in addition to the linked list
 so that we would have constant time for lookup of words and their counts which made our program much faster than it originally
 was with just the linked list. Other than that, the only major choices that aren't obvious would be choosing to split the file
-by bytes rather than words or lines, and choosing to have the parent do all the work if there are too many processes, as described
-earlier.
+by bytes rather than words or lines, which we did because it would be quicker and more even, and choosing to have the parent
+do all the work if there are too many processes, as described earlier.
 
 
 Performance
 | Num Processes     | Pangur Ban (Mean) | Pangur Ban (Std Dev) | Hamlet (Mean) | Hamlet (Std Dev) | Arabian Nights (Mean) | Arabian Nights (Std Dev)
 |-------------------|------------------:|---------------------:|--------------:|-----------------:|----------------------:|------------------------:|
-| 1 Process (ms)    | 349014.3          | 37492.0              | 29819027.2    | 1493234.9        | 142487104.5           | 12825707.7              |
-| 2 Processes (ms)  | 1467403.4         | 183513.0             | 26787969.0    | 2582183.4        | 118985226.6           | 8608068.5               |
-| 4 Processes (ms)  | 1960934.7         | 432659.3             | 29933254.9    | 1666468.2        | 107580134.4           | 23807125.8              |
-| 8 Processes (ms)  | 3861794.9         | 1036144.5            | 31776631.3    | 3521596.4        | 122530790.6           | 12702655.4              |
+| 1 Process (ns)    | 349014.3          | 37492.0              | 29819027.2    | 1493234.9        | 142487104.5           | 12825707.7              |
+| 2 Processes (ns)  | 1467403.4         | 183513.0             | 26787969.0    | 2582183.4        | 118985226.6           | 8608068.5               |
+| 4 Processes (ns)  | 1960934.7         | 432659.3             | 29933254.9    | 1666468.2        | 107580134.4           | 23807125.8              |
+| 8 Processes (ns)  | 3861794.9         | 1036144.5            | 31776631.3    | 3521596.4        | 122530790.6           | 12702655.4              |
 | Winner            | 1 Process         | 1 Process            | 2 Processes   | 1 Process        | 4 Processes           | 2 Processes             |
 
 
@@ -71,4 +74,6 @@ Citations:
 http://stackoverflow.com/questions/36069438/eof-reached-before-end-of-file/ (submitted by us, so it will resemble our code significantly)
 http://stackoverflow.com/questions/238603/how-can-i-get-a-files-size-in-c
 http://stackoverflow.com/questions/12835360/whitespace-in-the-format-string-scanf
+http://stackoverflow.com/questions/7666509/hash-function-for-string
+http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
 https://gist.github.com/tonious/1377667
