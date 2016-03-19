@@ -69,6 +69,11 @@ Performance
 | 8 Processes (ns)  | 3861794.9         | 1036144.5            | 31776631.3    | 3521596.4        | 122530790.6           | 12702655.4              |
 | Winner            | 1 Process         | 1 Process            | 2 Processes   | 1 Process        | 4 Processes           | 2 Processes             |
 
+Overall, the performance is roughly as expected. Multiprocess only helped in the much larger files, and even then it was best to
+keep the number of processes pretty low. Creating a new process is expensive, so it only helps if reading the entire file takes 
+a really long time. And even when multiple processes give a speed increase, it isn't really enough to justify doing something
+like this in general.
+
 
 Citations:
 http://stackoverflow.com/questions/36069438/eof-reached-before-end-of-file/ (submitted by us, so it will resemble our code significantly)
