@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
         //If we're not at the start of the file then we're probably
         //in the middle of a word. Let's advance past it.
         //The start of the file is either the parent if the number of processes
-        //is greaeter than the file size or the first child otherwise
+        //is greater than the file size or the first child otherwise
         if (proc_num != 0 && !(proc_num == num_processes - 1 && num_processes > file_size)) {
             if (!isspace(c = fgetc(input_textfile))) {
                 fseek(input_textfile, -2, SEEK_CUR);
