@@ -2,36 +2,83 @@ Evan Allan, Michael Berezanich
 
 
 File Descriptions
-src/main.c - Handles inputs, opens and closes the files, creates child processes, reads from the files and adds each word to the hashtable and linked list, outputs to files
+src/main.c - Handles inputs, opens and closes the files, creates child processes, reads from the files and adds each word to the 
+             hashtable and linked list, outputs to files
 src/hashtable.* - A hashtable created in order to speed up our program. It allows for constant lookup of words and counts
 src/list.* - The linked list to keep track of which words have been found, used in conjunction with the hashtable
 src/elapsedtime.* - Handles measuring the time taken to complete running the program
 
 
 Experience
-One problem we ran into initially was trying to share the file pointer between processes be cause at the time an email hadn't been sent out about the issue. Having each child open up the file seperately solved this issue however. Another issue we ran into was the loop we initially were using to read until the end of the file relied on feof, but that would sometimes cause the children to reach EOF before they had finished their portion. We ended up using a more complex loop condition (line 129 in main.c) to fix this issue and make sure we were covering the entire file. Another problem was splitting up the file properly and making sure there was no overlap although this wasn't major, it was just tricky making sure that they were all about even and didn't read any of the same words twice or miss any. And one of the final problems we faced was getting the program to work correctly when there were more processes than bytes in the file but in that case we made it so that the parent just reads the entire file and the children do nothing.
+One problem we ran into initially was trying to share the file pointer between processes because at the time an email
+hadn't been sent out about the issue. Having each child open up the file seperately solved this issue however. Another 
+issue we ran into was the loop we initially were using to read until the end of the file relied on feof, but that would
+sometimes cause the children to reach EOF before they had finished their portion. This may have been because of the shared
+file pointers, but we decided to change it anyway. We ended up using a more complex loop condition (line 129 in main.c) to
+fix this issue and make sure we were covering the entire file. Another problem was splitting up the file properly and
+making sure there was no overlap. Although this wasn't major, it was just tricky making sure that they were all about even
+and didn't read any of the same words twice or miss any. And one of the final problems we faced was getting the program to
+work correctly when there were more processes than bytes in the file. In that case, we made it so that the parent just reads
+the entire file and the children do nothing.
 
 
 System Calls / Library Functions
-
+clock_gettime() - gets the current system clock time, accurate to the nanosecond
+malloc() - allocates memory on the heap
+strdup() - duplicates a string
+strcmp() - compares strings based on lexigraphical ordering
+free() - frees up memory allocated on the heap
+fopen() - opens a file and returns a file pointer
+fclose() - closes a file pointer created by fopen
+perror() - Outputs details about an error in a library function
+printf() - prints data to a data stream
+fork() - makes a copy of the current process
+pipe() - creates 2 file descriptors for a pipe than can send data from one end to the other
+fseek() - moves to a particular offset within a file
+ftell() - gets the current offset in a file
+isspace() - determines if a character is whitespace
+fgetc() - gets a character from a file
+fscanf() - searches for data within a file
+exit() - exits the program
+waitpid() - waits for a child to finish
+fgets() - gets a string from a file (1 line at most)
+sscanf() - scans for data in a string
+strlen() - gets string length
+isalnum() - determines if a character is alphanumeric
+tolower() - returns the lowercase version of a character
+atoi() - converts a string to an integer
+fprintf() - prints formatted data to a file
+fdopen() - creates a file pointer from a file descriptor
+close() - like fclose(), but for a file descriptor
 
 
 Design Choices
-One interesting choice we made (in project 1 but it still applies) is that we used a hashtable in addition to the linked list so that we would have constant time for lookup of words and their counts which made our program much faster than it originally was with the linked list. 
+One interesting choice we made (in project 1 but it still applies) is that we used a hashtable in addition to the linked list
+so that we would have constant time for lookup of words and their counts which made our program much faster than it originally
+was with just the linked list. Other than that, the only major choices that aren't obvious would be choosing to split the file
+by bytes rather than words or lines, which we did because it would be quicker and more even, and choosing to have the parent
+do all the work if there are too many processes, as described earlier.
 
 
 Performance
 | Num Processes     | Pangur Ban (Mean) | Pangur Ban (Std Dev) | Hamlet (Mean) | Hamlet (Std Dev) | Arabian Nights (Mean) | Arabian Nights (Std Dev)
 |-------------------|------------------:|---------------------:|--------------:|-----------------:|----------------------:|------------------------:|
-| 1 Process (ms)    | 349014.3          | 37492.0              | 29819027.2    | 1493234.9        | 142487104.5           | 12825707.7              |
-| 2 Processes (ms)  | 1467403.4         | 183513.0             | 26787969.0    | 2582183.4        | 118985226.6           | 8608068.5               |
-| 4 Processes (ms)  | 1960934.7         | 432659.3             | 29933254.9    | 1666468.2        | 107580134.4           | 23807125.8              |
-| 8 Processes (ms)  | 3861794.9         | 1036144.5            | 31776631.3    | 3521596.4        | 122530790.6           | 12702655.4              |
+| 1 Process (ns)    | 349014.3          | 37492.0              | 29819027.2    | 1493234.9        | 142487104.5           | 12825707.7              |
+| 2 Processes (ns)  | 1467403.4         | 183513.0             | 26787969.0    | 2582183.4        | 118985226.6           | 8608068.5               |
+| 4 Processes (ns)  | 1960934.7         | 432659.3             | 29933254.9    | 1666468.2        | 107580134.4           | 23807125.8              |
+| 8 Processes (ns)  | 3861794.9         | 1036144.5            | 31776631.3    | 3521596.4        | 122530790.6           | 12702655.4              |
 | Winner            | 1 Process         | 1 Process            | 2 Processes   | 1 Process        | 4 Processes           | 2 Processes             |
+
+Overall, the performance is roughly as expected. Multiprocess only helped in the much larger files, and even then it was best to
+keep the number of processes pretty low. Creating a new process is expensive, so it only helps if reading the entire file takes 
+a really long time. And even when multiple processes give a speed increase, it isn't really enough to justify doing something
+like this in general.
 
 
 Citations:
-http://stackoverflow.com/questions/36069438/eof-reached-before-end-of-file/
+http://stackoverflow.com/questions/36069438/eof-reached-before-end-of-file/ (submitted by us, so it will resemble our code significantly)
 http://stackoverflow.com/questions/238603/how-can-i-get-a-files-size-in-c
 http://stackoverflow.com/questions/12835360/whitespace-in-the-format-string-scanf
+http://stackoverflow.com/questions/7666509/hash-function-for-string
+http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
 https://gist.github.com/tonious/1377667

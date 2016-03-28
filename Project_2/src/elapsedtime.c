@@ -22,12 +22,14 @@ static struct timespec end_time;
 void start_clock(){
     if (clock_gettime(CLOCK_REALTIME, &start_time) == -1){
         fprintf(stderr, "Error getting starting clocktime");
+        exit(1);
     }
 }
 
 void end_clock(){
     if (clock_gettime(CLOCK_REALTIME, &end_time) == -1){
         fprintf(stderr, "Error getting ending clock time");
+        exit(1);
     }
 }
 
