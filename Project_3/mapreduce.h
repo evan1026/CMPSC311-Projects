@@ -61,7 +61,12 @@ typedef int (*reduce_fn)(struct map_reduce *mr, int outfd, int nmaps);
  * functions.
  */
 struct map_reduce {
-	/* add your fields here */
+	map_fn mapfn;
+	reduce_fn reducefn;
+	int num_threads;
+	struct kvpair **buffers; //would make this a kvpair**, but it hasn't been declared yet...
+	pthread_mutex_t *buf_mutexes;
+	pthread_t *threads;
 };
 
 /**
