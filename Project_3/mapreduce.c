@@ -149,6 +149,42 @@ mr_destroy(struct map_reduce *mr)
 int
 mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 {
+	int input_fd = open(inpath, O_RDONLY);
+	int output_fd = open(outpath, O_WRONLY | O_CREAT | O_TRUNC);
+
+
+	//Check if files have opened properly first
+	if(input_fd == -1){
+		fprintf(stderr, "Could not open input file, please make sure the file exists and that you have read permission for it\n");
+		perror("");
+	}
+	if (output_fd == -1){
+		fprintf(stderr, "Could not open or create output file\n");
+		perror("");
+	}
+
+
+	for (int i = 0; i < mr->num_threads; i++){
+		//This is not going to work because args for the function must be a single void *. The docs here (https://computing.llnl.gov/tutorials/pthreads/) say to create a struct containing the arguments, however the map function would need to have a void* argument.Not sure what to do
+		if (pthread_create(mr->threads[i], NULL, map, mr, input_fd, i, mr->num_threads) != 0){
+			fprintf(stderr, "Error creating thread %d\n", i);
+			perror("");
+		}
+	}
+
+
+
+
+	//Close all open files
+	if (close(input_fd == -1)){
+		fprintf(stderr, "Error closing input file\n");
+		perror("");
+	}
+	if (close(output_fd == -1)){
+		fprintf(stderr, "Error closing output file\n");
+		perror("");
+	}
+
 	return 0;
 }
 
