@@ -193,7 +193,7 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 		perror("");
 	}
 
-	if (mr->num_threads > 1){
+	if (mr->num_threads >= 1){
 		for (int i = 0; i < mr->num_threads; i++){
 			struct map_params *mp = setup_map_params(mr, inpath, i);
 
@@ -215,19 +215,9 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 				free(mp);
 			}
 		}
-	} else if(mr->num_threads <= 0){
-		fprintf(stderr, "Cannot run with 0 or less threads\n");
+	} else {
+		fprintf(stderr, "Cannot run with less than 1 thread\n");
 		return 1;
-	} else { //if we get here one thread was specified
-		int input_fd = open(outpath, O_RDONLY);
-
-		//Check if file was opened successively
-		if (input_fd == -1){
-			fprintf(stderr, "Error opening input file\n");
-			perror("");
-		} else {
-			mr->mapfn(mr, input_fd, 0, 1);
-		}
 	}
 
 	mr->reducefn(mr, output_fd, mr->num_threads);
