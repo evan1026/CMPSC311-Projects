@@ -12,8 +12,11 @@
 
 /* Header includes */
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "mapreduce.h"
 
@@ -21,6 +24,39 @@
 /* Size of shared memory buffers */
 #define MR_BUFFER_SIZE 1024
 
+struct map_params{
+	struct map_reduce *mr;
+	int infd;
+	int id;
+	int nmaps;
+};
+
+struct map_params *setup_map_params(struct map_reduce *mr, const char *inpath, int id){
+	struct map_params *mp = (struct map_params *) malloc(sizeof(struct map_params));
+	mp->mr = mr;
+	mp->id = id;
+	mp->nmaps = mr->num_threads;
+	mp->infd = open(inpath, O_RDONLY);
+
+	if (mp->infd == -1){
+		fprintf(stderr, "Could not open input file, please make sure the file exists and that you have read permission for it\n");
+		perror("");
+		free(mp);
+		return NULL;
+	} else {
+		return mp;
+	}
+}
+
+void *read_map_params(void *args){
+	struct map_params *mp = (struct map_params *) args;
+
+	if (mp->mr->mapfn(mp->mr, mp->infd, mp->id, mp->nmaps) != 0){
+		fprintf(stderr, "Error calling map function for thread %d\n", mp->id);
+	}
+
+	return NULL;
+}
 
 /* Allocates and initializes an instance of the MapReduce framework */
 struct map_reduce *
@@ -149,38 +185,55 @@ mr_destroy(struct map_reduce *mr)
 int
 mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 {
-	int input_fd = open(inpath, O_RDONLY);
 	int output_fd = open(outpath, O_WRONLY | O_CREAT | O_TRUNC);
 
-
-	//Check if files have opened properly first
-	if(input_fd == -1){
-		fprintf(stderr, "Could not open input file, please make sure the file exists and that you have read permission for it\n");
-		perror("");
-	}
+	//Check if output file was opened correctly
 	if (output_fd == -1){
 		fprintf(stderr, "Could not open or create output file\n");
 		perror("");
 	}
 
+	if (mr->num_threads > 1){
+		for (int i = 0; i < mr->num_threads; i++){
+			struct map_params *mp = setup_map_params(mr, inpath, i);
 
-	for (int i = 0; i < mr->num_threads; i++){
-		//This is not going to work because args for the function must be a single void *. The docs here (https://computing.llnl.gov/tutorials/pthreads/) say to create a struct containing the arguments, however the map function would need to have a void* argument.Not sure what to do
-		if (pthread_create(mr->threads[i], NULL, map, mr, input_fd, i, mr->num_threads) != 0){
-			fprintf(stderr, "Error creating thread %d\n", i);
+			//If setup_map_params could not correctly set up our map params struct
+			if (mp == NULL){
+				fprintf(stderr, "Error setting up map params struct. Skipping creation of thread%d\n", i);
+			} else {
+				if (pthread_create(&mr->threads[i], NULL, read_map_params, (void *) mp) != 0){
+					fprintf(stderr, "Error creating thread %d\n", i);
+					perror("");
+				}
+
+				//Check if input file is closed correctly for each thread
+				if (close(mp->infd == -1)){
+					fprintf(stderr, "Error closing input file for thread %d\n", i);
+					perror("");
+				}
+
+				free(mp);
+			}
+		}
+	} else if(mr->num_threads <= 0){
+		fprintf(stderr, "Cannot run with 0 or less threads\n");
+		return 1;
+	} else { //if we get here one thread was specified
+		int input_fd = open(outpath, O_RDONLY);
+
+		//Check if file was opened successively
+		if (input_fd == -1){
+			fprintf(stderr, "Error opening input file\n");
 			perror("");
+		} else {
+			mr->mapfn(mr, input_fd, 0, 1);
 		}
 	}
 
+	mr->reducefn(mr, output_fd, mr->num_threads);
 
-
-
-	//Close all open files
-	if (close(input_fd == -1)){
-		fprintf(stderr, "Error closing input file\n");
-		perror("");
-	}
-	if (close(output_fd == -1)){
+	//Check if output file is closed successively
+	if (close(output_fd) == -1){
 		fprintf(stderr, "Error closing output file\n");
 		perror("");
 	}
@@ -208,3 +261,5 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 {
 	return 0;
 }
+
+
