@@ -56,8 +56,8 @@ void *read_map_params(void *args){
 	}
 
 	//Check if input file is closed correctly
-	if (close(mp->infd == -1)){
-		fprintf(stderr, "Error closing input file for thread %d\n", i);
+	if (close(mp->infd) == -1){
+		fprintf(stderr, "Error closing input file for thread %d\n", mp->id);
 		perror("");
 	}
 
@@ -235,6 +235,10 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 int
 mr_finish(struct map_reduce *mr)
 {
+	int i;
+	for (i = 0; i < mr->num_threads; ++i) {
+		pthread_join(mr->threads[i], NULL);
+	}
 	return 0;
 }
 
