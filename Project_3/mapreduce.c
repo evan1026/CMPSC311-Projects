@@ -55,6 +55,14 @@ void *read_map_params(void *args){
 		fprintf(stderr, "Error calling map function for thread %d\n", mp->id);
 	}
 
+	//Check if input file is closed correctly
+	if (close(mp->infd == -1)){
+		fprintf(stderr, "Error closing input file for thread %d\n", i);
+		perror("");
+	}
+
+	free(mp);
+
 	return NULL;
 }
 
@@ -205,14 +213,6 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 					fprintf(stderr, "Error creating thread %d\n", i);
 					perror("");
 				}
-
-				//Check if input file is closed correctly for each thread
-				if (close(mp->infd == -1)){
-					fprintf(stderr, "Error closing input file for thread %d\n", i);
-					perror("");
-				}
-
-				free(mp);
 			}
 		}
 	} else {
