@@ -66,7 +66,8 @@ struct map_reduce {
 	int num_threads;
 	struct kvpair **buffers; //would make this a kvpair**, but it hasn't been declared yet...
 	pthread_mutex_t *buf_mutexes;
-	pthread_t *threads;
+	pthread_t **map_threads;
+	pthread_t *reduce_thread;
 };
 
 /**
