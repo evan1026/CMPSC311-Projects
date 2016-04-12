@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "mapreduce.h"
 
@@ -74,6 +75,8 @@ void *run_map(void *args){
 
 	*ret = mp->mr->mapfn(mp->mr, mp->infd, mp->id, mp->mr->num_threads);
 
+	mp->mr->finished[mp->id] = true;
+
 	//Check if input file is closed correctly
 	if (close(mp->infd) == -1){
 		fprintf(stderr, "Error closing input file for thread %d\n", mp->id);
@@ -126,6 +129,8 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 		mr->buf_mutexes = malloc(threads * sizeof(pthread_mutex_t));
 		mr->in = malloc(threads * sizeof(int));
 		mr->out = malloc(threads * sizeof(int));
+		mr->count = malloc(threads * sizeof(int));
+		mr->finished = malloc(threads * sizeof(bool));
 		mr->map_threads = malloc(threads * sizeof(pthread_t *));
 		mr->reduce_thread = malloc(sizeof(pthread_t));
 
@@ -165,6 +170,22 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 		} else {
 			for (i = 0; i < threads; ++i) {
 				mr->out[i] = 0;
+			}
+		}
+
+		if (mr->count == NULL) {
+			error = true;
+		} else {
+			for (i = 0; i < threads; ++i) {
+				mr->count[i] = 0;
+			}
+		}
+
+		if (mr->finished == NULL) {
+			error = true;
+		} else {
+			for (i = 0; i < threads; ++i) {
+				mr->finished[i] = false;
 			}
 		}
 
@@ -225,6 +246,10 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 				free(mr->in);
 			if (mr->out != NULL)
 				free(mr->out);
+			if (mr->count != NULL)
+				free(mr->count);
+			if (mr->finished != NULL)
+				free(mr->finished);
 			if (mr->buf_mutexes != NULL)
 				free(mr->buf_mutexes);
 			if (mr->map_threads != NULL)
@@ -263,6 +288,12 @@ mr_destroy(struct map_reduce *mr)
 		if (mr->out != NULL) {
 			free(mr->out);
 		}
+		if (mr->count != NULL) {
+			free(mr->count);
+		}
+		if (mr->finished != NULL) {
+			free(mr->finished);
+		}
 		if (mr->buf_mutexes != NULL) {
 			for (i = 0; i < mr->num_threads; ++i) {
 				pthread_mutex_destroy(&mr->buf_mutexes[i]);
@@ -287,6 +318,9 @@ mr_destroy(struct map_reduce *mr)
 int
 mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 {
+	if (mr == NULL || inpath == NULL || outpath == NULL)
+		return 1;
+
 	int output_fd = open(outpath, O_WRONLY | O_CREAT | O_TRUNC);
 	int infd = open(inpath, O_RDONLY);
 	bool error = false;
@@ -380,6 +414,9 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 int
 mr_finish(struct map_reduce *mr)
 {
+	if (mr == NULL)
+		return -1;
+
 	int i, out = 0;
 	void *ret = NULL;
 	int *ret_i;
@@ -422,14 +459,87 @@ mr_finish(struct map_reduce *mr)
 int
 mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 {
-	return 0;
+	if (kv == NULL || mr == NULL)
+		return -1;
+
+	struct kvpair kvcopy;
+
+	kvcopy.key = malloc(kv->keysz);
+	kvcopy.value = malloc(kv->valuesz);
+	kvcopy.keysz = kv->keysz;
+	kvcopy.valuesz = kv->valuesz;
+
+	if (kvcopy.key == NULL || kvcopy.value == NULL) {
+		if (kvcopy.key != NULL)
+			free(kvcopy.key);
+		if (kvcopy.value != NULL)
+			free(kvcopy.value);
+		return -1;
+	}
+
+	memcpy(kvcopy.key, kv->key, kvcopy.keysz);
+	memcpy(kvcopy.value, kv->value, kvcopy.valuesz);
+
+	while (1) {
+		pthread_mutex_lock(&mr->buf_mutexes[id]);
+		if (mr->count[id] < MR_BUFFER_SIZE) {
+			mr->buffers[id][mr->in[id]] = kvcopy;
+			mr->in[id] = (mr->in[id] + 1) % MR_BUFFER_SIZE;
+			mr->count[id]++;
+			break;
+		}
+		pthread_mutex_unlock(&mr->buf_mutexes[id]);
+	}
+	pthread_mutex_unlock(&mr->buf_mutexes[id]);
+
+	return 1;
 }
 
 /* Called by the Reduce function to consume a key-value pair */
 int
 mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 {
-	return 0;
+	struct kvpair *buf_kv;
+	if (kv == NULL || mr == NULL)
+		return -1;
+
+	while (1) {
+		pthread_mutex_lock(&mr->buf_mutexes[id]);
+		buf_kv = &mr->buffers[id][mr->out[id]];
+		if (mr->count[id] > 0) {
+			if (kv->keysz < buf_kv->keysz || kv->valuesz < buf_kv->valuesz) {
+				//no space => error
+				kv->key = NULL;
+				kv->value = NULL;
+				pthread_mutex_unlock(&mr->buf_mutexes[id]); //Almost forgot this because I'm used to std::lock_guard
+				return -1;
+			}
+			//Ok, we have space. Let's do the copy
+			memcpy(kv->key, buf_kv->key, buf_kv->keysz);
+			memcpy(kv->value, buf_kv->value, buf_kv->valuesz);
+			kv->keysz = buf_kv->keysz;
+			kv->valuesz = buf_kv->valuesz;
+
+			free(buf_kv->key);
+			free(buf_kv->value);
+
+			mr->out[id] = (mr->out[id] + 1) % MR_BUFFER_SIZE;
+			mr->count[id]--;
+			pthread_mutex_unlock(&mr->buf_mutexes[id]);
+			return 1;
+		} else if (mr->finished[id]) {
+			kv->key = NULL;
+			kv->value = NULL;
+			kv->keysz = 0;
+			kv->valuesz = 0;
+			pthread_mutex_unlock(&mr->buf_mutexes[id]);
+			return 0;
+		}
+		pthread_mutex_unlock(&mr->buf_mutexes[id]);
+	}
+	pthread_mutex_unlock(&mr->buf_mutexes[id]);
+
+	return -1; //Shouldn't even get here anyway
 }
 
 

@@ -65,7 +65,8 @@ struct map_reduce {
 	reduce_fn reducefn;
 	int num_threads;
 	struct kvpair **buffers;
-	int *in, *out;
+	int *in, *out, *count;
+	bool *finished;
 	pthread_mutex_t *buf_mutexes;
 	pthread_t **map_threads;
 	pthread_t *reduce_thread;
