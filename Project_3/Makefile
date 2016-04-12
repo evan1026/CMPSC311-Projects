@@ -22,10 +22,11 @@ endif
 CFLAGS += -std=c99 -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -D_BSD_SOURCE -D_XOPEN_SOURCE -D_GNU_SOURCE -pthread
 
 # Warning and error settings
-CFLAGS += -Wall -Wextra
+CFLAGS += -Wall -Wextra -fstack-protector
 
-ERROR_FLAGS =  -Werror -Wno-sign-compare -Wno-type-limits
-ERROR_FLAGS += -Wno-unused-variable -Wno-unused-function -Wno-unused-label -Wno-unused-parameter -Wno-unused-but-set-variable
+ERROR_FLAGS =  -Werror -Wbad-function-cast -Wpointer-arith -Wshadow -Waggregate-return
+ERROR_FLAGS += -Wno-sign-compare -Wno-type-limits
+ERROR_FLAGS += -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-unused-label -Wno-unused-but-set-variable
 
 # Insert debugging symbols
 CFLAGS += -g

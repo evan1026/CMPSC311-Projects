@@ -31,7 +31,7 @@ struct map_params{
 };
 
 struct map_params *setup_map_params(struct map_reduce *mr, const char *inpath, int id){
-	struct map_params *mp = (struct map_params *) malloc(sizeof(struct map_params));
+	struct map_params *mp = malloc(sizeof(struct map_params));
 
 	if (mp == NULL) return NULL;
 
@@ -55,7 +55,7 @@ struct reduce_params {
 };
 
 struct reduce_params *setup_reduce_params(struct map_reduce *mr, int outfd){
-	struct reduce_params *rp = (struct reduce_params *) malloc(sizeof(struct map_params));
+	struct reduce_params *rp = malloc(sizeof(struct map_params));
 
 	if (rp == NULL) return NULL;
 
@@ -66,8 +66,8 @@ struct reduce_params *setup_reduce_params(struct map_reduce *mr, int outfd){
 }
 
 void *run_map(void *args){
-	struct map_params *mp = (struct map_params *) args;
-	int *ret = (int *) malloc(sizeof(int));
+	struct map_params *mp = args;
+	int *ret = malloc(sizeof(int));
 
 	if (ret == NULL)
 		return NULL;
@@ -82,12 +82,12 @@ void *run_map(void *args){
 
 	free(mp);
 
-	return (void *) ret;
+	return ret;
 }
 
 void *run_reduce(void *args) {
-	struct reduce_params *rp = (struct reduce_params *) args;
-	int *ret = (int *) malloc(sizeof(int));
+	struct reduce_params *rp = args;
+	int *ret = malloc(sizeof(int));
 
 	if (ret == NULL)
 		return NULL;
@@ -102,7 +102,7 @@ void *run_reduce(void *args) {
 
 	free(rp);
 
-	return (void *) ret;
+	return ret;
 }
 
 /* Allocates and initializes an instance of the MapReduce framework */
@@ -111,7 +111,7 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 {
 	bool error = false;
 	int i, temp = 0;
-	struct map_reduce *mr = (struct map_reduce *) malloc(sizeof(struct map_reduce));
+	struct map_reduce *mr = malloc(sizeof(struct map_reduce));
 
 	//First, let's make sure we got something
 	if (mr == NULL) {
@@ -122,10 +122,12 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 		mr->mapfn = map;
 		mr->reducefn = reduce;
 		mr->num_threads = threads;
-		mr->buffers = (struct kvpair **) malloc(threads * sizeof(struct kvpair *));
-		mr->buf_mutexes = (pthread_mutex_t *) malloc(threads * sizeof(pthread_mutex_t));
-		mr->map_threads = (pthread_t **) malloc(threads * sizeof(pthread_t *));
-		mr->reduce_thread = (pthread_t *) malloc(sizeof(pthread_t));
+		mr->buffers = malloc(threads * sizeof(struct kvpair *));
+		mr->buf_mutexes = malloc(threads * sizeof(pthread_mutex_t));
+		mr->in = malloc(threads * sizeof(int));
+		mr->out = malloc(threads * sizeof(int));
+		mr->map_threads = malloc(threads * sizeof(pthread_t *));
+		mr->reduce_thread = malloc(sizeof(pthread_t));
 
 		//Let's make sure the buffer array was created
 		if (mr->buffers == NULL) {
@@ -134,7 +136,7 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 			//And now we'll initialize each individual buffer
 			for (i = 0; i < threads; ++i) {
 				//Initialize the current buffer
-				mr->buffers[i] = (struct kvpair *) malloc(MR_BUFFER_SIZE * sizeof(struct kvpair));
+				mr->buffers[i] = malloc(MR_BUFFER_SIZE * sizeof(struct kvpair));
 
 				//If this one failed, no point in continuing
 				if (mr->buffers[i] == NULL) break;
@@ -147,6 +149,22 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 					free(mr->buffers[i]);
 				}
 				error = true;
+			}
+		}
+
+		if (mr->in == NULL) {
+			error = true;
+		} else {
+			for (i = 0; i < threads; ++i) {
+				mr->in[i] = 0;
+			}
+		}
+
+		if (mr->out == NULL) {
+			error = true;
+		} else {
+			for (i = 0; i < threads; ++i) {
+				mr->out[i] = 0;
 			}
 		}
 
@@ -178,7 +196,7 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 			error = true;
 		} else {
 			for (i = 0; i < threads; ++i) {
-				mr->map_threads[i] = (pthread_t *) malloc(sizeof(pthread_t));
+				mr->map_threads[i] = malloc(sizeof(pthread_t));
 
 				if (mr->map_threads[i] == NULL) break;
 			}
@@ -203,6 +221,10 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 		if (mr != NULL) {
 			if (mr->buffers != NULL)
 				free(mr->buffers);
+			if (mr->in != NULL)
+				free(mr->in);
+			if (mr->out != NULL)
+				free(mr->out);
 			if (mr->buf_mutexes != NULL)
 				free(mr->buf_mutexes);
 			if (mr->map_threads != NULL)
@@ -234,6 +256,12 @@ mr_destroy(struct map_reduce *mr)
 				free(mr->buffers[i]);
 			}
 			free(mr->buffers);
+		}
+		if (mr->in != NULL) {
+			free(mr->in);
+	   	}
+		if (mr->out != NULL) {
+			free(mr->out);
 		}
 		if (mr->buf_mutexes != NULL) {
 			for (i = 0; i < mr->num_threads; ++i) {
@@ -298,7 +326,7 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 				free(mr->map_threads[i]);
 				mr->map_threads[i] = NULL;
 			} else {
-				if (pthread_create(mr->map_threads[i], NULL, run_map, (void *) mp) != 0){
+				if (pthread_create(mr->map_threads[i], NULL, run_map, mp) != 0){
 					fprintf(stderr, "Error creating map thread %d\n", i);
 					perror("");
 					error = true;
@@ -333,7 +361,7 @@ mr_start(struct map_reduce *mr, const char *inpath, const char *outpath)
 		free(mr->reduce_thread);
 		mr->reduce_thread = NULL;
 	} else {
-		if (pthread_create(mr->reduce_thread, NULL, run_reduce, (void *) rp) != 0){
+		if (pthread_create(mr->reduce_thread, NULL, run_reduce, rp) != 0){
 			fprintf(stderr, "Error creating reduce thread\n");
 			perror("");
 			free(mr->reduce_thread);
@@ -361,7 +389,7 @@ mr_finish(struct map_reduce *mr)
 			continue;
 
 		pthread_join(*mr->map_threads[i], &ret);
-		ret_i = (int *) ret;
+		ret_i = ret;
 
 		if (ret_i == NULL) {
 			out = 1;
@@ -376,7 +404,7 @@ mr_finish(struct map_reduce *mr)
 
 	if (mr->reduce_thread != NULL){
 		pthread_join(*mr->reduce_thread, &ret);
-		ret_i = (int *) ret;
+		ret_i = ret;
 
 		if (ret_i == NULL) {
 			out = 1;
