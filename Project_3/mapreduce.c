@@ -23,7 +23,7 @@
 
 
 /* Size of shared memory buffers */
-#define MR_BUFFER_SIZE 1024
+#define MR_BUFFER_SIZE 10240 
 
 struct map_params{
 	struct map_reduce *mr;
