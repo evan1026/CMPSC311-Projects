@@ -31,7 +31,8 @@ struct map_params{
 	int id;
 };
 
-struct map_params *setup_map_params(struct map_reduce *mr, const char *inpath, int id){
+//Fills the map_params struct with the appropriate data
+static struct map_params *setup_map_params(struct map_reduce *mr, const char *inpath, int id){
 	struct map_params *mp = malloc(sizeof(struct map_params));
 
 	if (mp == NULL) return NULL;
@@ -55,7 +56,8 @@ struct reduce_params {
 	int outfd;
 };
 
-struct reduce_params *setup_reduce_params(struct map_reduce *mr, int outfd){
+//Fills the reduce_params struct with the appropriate data
+static struct reduce_params *setup_reduce_params(struct map_reduce *mr, int outfd){
 	struct reduce_params *rp = malloc(sizeof(struct map_params));
 
 	if (rp == NULL) return NULL;
@@ -66,7 +68,9 @@ struct reduce_params *setup_reduce_params(struct map_reduce *mr, int outfd){
 	return rp;
 }
 
-void *run_map(void *args){
+//Gets called as the first function of the new thread
+//passes args on to mapper function
+static void *run_map(void *args){
 	struct map_params *mp = args;
 	int *ret = malloc(sizeof(int));
 
@@ -75,6 +79,7 @@ void *run_map(void *args){
 
 	*ret = mp->mr->mapfn(mp->mr, mp->infd, mp->id, mp->mr->num_threads);
 
+	//Marks as finished; value used to signal reducer that there is nothing left
 	mp->mr->finished[mp->id] = true;
 
 	//Check if input file is closed correctly
@@ -88,7 +93,9 @@ void *run_map(void *args){
 	return ret;
 }
 
-void *run_reduce(void *args) {
+//Gets called as the first function of the new thread
+//passes args on to reducer function
+static void *run_reduce(void *args) {
 	struct reduce_params *rp = args;
 	int *ret = malloc(sizeof(int));
 
@@ -127,8 +134,8 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 		mr->num_threads = threads;
 		mr->buffers = malloc(threads * sizeof(struct kvpair *));
 		mr->buf_mutexes = malloc(threads * sizeof(pthread_mutex_t));
-		mr->in = malloc(threads * sizeof(int));
-		mr->out = malloc(threads * sizeof(int));
+		mr->in = malloc(threads * sizeof(int));                               //I really like the way these
+		mr->out = malloc(threads * sizeof(int));                              //malloc's happened to line up
 		mr->count = malloc(threads * sizeof(int));
 		mr->finished = malloc(threads * sizeof(bool));
 		mr->map_threads = malloc(threads * sizeof(pthread_t *));
@@ -157,6 +164,8 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 			}
 		}
 
+		//Now we initialize in 'in' variable which keeps track of where the mapper is
+		//in its buffer
 		if (mr->in == NULL) {
 			error = true;
 		} else {
@@ -165,6 +174,8 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 			}
 		}
 
+		//And then the 'out' variable, which keeps track of where the reducer is
+		//in each buffer
 		if (mr->out == NULL) {
 			error = true;
 		} else {
@@ -173,6 +184,7 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 			}
 		}
 
+		//Now for count, which counts the number of objects in the buffer
 		if (mr->count == NULL) {
 			error = true;
 		} else {
@@ -181,6 +193,7 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 			}
 		}
 
+		//And finished, which keeps track of which threads have finished execution
 		if (mr->finished == NULL) {
 			error = true;
 		} else {
@@ -189,7 +202,7 @@ mr_create(map_fn map, reduce_fn reduce, int threads)
 			}
 		}
 
-		//Now, we'll do the same thing with the mutexes
+		//Now, we'll do the mutexes
 		if (mr->buf_mutexes == NULL) {
 			error = true;
 		} else {
@@ -421,24 +434,29 @@ mr_finish(struct map_reduce *mr)
 	void *ret = NULL;
 	int *ret_i;
 
+	//Go through and wait on each thread
 	for (i = 0; i < mr->num_threads; ++i) {
 		if (mr->map_threads[i] == NULL)
 			continue;
 
+		//Grab the return while waiting
 		pthread_join(*mr->map_threads[i], &ret);
 		ret_i = ret;
 
+		//If no return, something went wrong, so keep track of it, but keep waiting
 		if (ret_i == NULL) {
 			out = 1;
-			continue;
+			continue; //So we don't run the free later
 		}
 
+		//If the return wasn't zero, that's also an issue
 		if (*ret_i != 0)
 			out = 1;
 
 		free(ret_i);
 	}
 
+	//Do the same stuff, but with the reducer
 	if (mr->reduce_thread != NULL){
 		pthread_join(*mr->reduce_thread, &ret);
 		ret_i = ret;
@@ -452,6 +470,7 @@ mr_finish(struct map_reduce *mr)
 		}
 	}
 
+	//If anything went wrong, this will return 1, 0 otherwise
 	return out;
 }
 
@@ -462,13 +481,14 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 	if (kv == NULL || mr == NULL)
 		return -1;
 
+	//Make some space to copy the values
 	struct kvpair kvcopy;
-
 	kvcopy.key = malloc(kv->keysz);
 	kvcopy.value = malloc(kv->valuesz);
 	kvcopy.keysz = kv->keysz;
 	kvcopy.valuesz = kv->valuesz;
 
+	//Make sure we got the space
 	if (kvcopy.key == NULL || kvcopy.value == NULL) {
 		if (kvcopy.key != NULL)
 			free(kvcopy.key);
@@ -477,20 +497,22 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 		return -1;
 	}
 
+	//Copy the data
 	memcpy(kvcopy.key, kv->key, kvcopy.keysz);
 	memcpy(kvcopy.value, kv->value, kvcopy.valuesz);
 
+	//Wait for the mutex to be available, and then put it in the buffer
 	while (1) {
-		pthread_mutex_lock(&mr->buf_mutexes[id]);
-		if (mr->count[id] < MR_BUFFER_SIZE) {
-			mr->buffers[id][mr->in[id]] = kvcopy;
-			mr->in[id] = (mr->in[id] + 1) % MR_BUFFER_SIZE;
-			mr->count[id]++;
+		pthread_mutex_lock(&mr->buf_mutexes[id]); //Wait on mutex
+		if (mr->count[id] < MR_BUFFER_SIZE) { //Make sure there's space
+			mr->buffers[id][mr->in[id]] = kvcopy; //Put in the data
+			mr->in[id] = (mr->in[id] + 1) % MR_BUFFER_SIZE; //Change the in value
+			mr->count[id]++; //And the count
 			break;
 		}
-		pthread_mutex_unlock(&mr->buf_mutexes[id]);
+		pthread_mutex_unlock(&mr->buf_mutexes[id]); //Release the mutex if we didn't update
 	}
-	pthread_mutex_unlock(&mr->buf_mutexes[id]);
+	pthread_mutex_unlock(&mr->buf_mutexes[id]); //Release the mutex if we did update
 
 	return 1;
 }
@@ -503,12 +525,14 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 	if (kv == NULL || mr == NULL)
 		return -1;
 
+	//Wait for the mutex to become available, and then copy the data out and into
+	//the struct that has been allocated for us
 	while (1) {
 		pthread_mutex_lock(&mr->buf_mutexes[id]);
 		buf_kv = &mr->buffers[id][mr->out[id]];
 		if (mr->count[id] > 0) {
 			if (kv->keysz < buf_kv->keysz || kv->valuesz < buf_kv->valuesz) {
-				//no space => error
+				//not enough space allocated => error
 				kv->key = NULL;
 				kv->value = NULL;
 				pthread_mutex_unlock(&mr->buf_mutexes[id]); //Almost forgot this because I'm used to std::lock_guard
@@ -520,14 +544,17 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 			kv->keysz = buf_kv->keysz;
 			kv->valuesz = buf_kv->valuesz;
 
+			//Mark the space we were using for the data as freed
 			free(buf_kv->key);
 			free(buf_kv->value);
 
+			//And do the accounting
 			mr->out[id] = (mr->out[id] + 1) % MR_BUFFER_SIZE;
 			mr->count[id]--;
 			pthread_mutex_unlock(&mr->buf_mutexes[id]);
 			return 1;
-		} else if (mr->finished[id]) {
+		} else if (mr->finished[id]) { //Else means nothing in the buffer, let's see if it's because the thread is done
+			//Ok, thread is done. Return empty kvpair
 			kv->key = NULL;
 			kv->value = NULL;
 			kv->keysz = 0;
@@ -541,5 +568,3 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 
 	return -1; //Shouldn't even get here anyway
 }
-
-
