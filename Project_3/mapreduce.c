@@ -533,8 +533,6 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 		if (mr->count[id] > 0) {
 			if (kv->keysz < buf_kv->keysz || kv->valuesz < buf_kv->valuesz) {
 				//not enough space allocated => error
-				kv->key = NULL;
-				kv->value = NULL;
 				pthread_mutex_unlock(&mr->buf_mutexes[id]); //Almost forgot this because I'm used to std::lock_guard
 				return -1;
 			}
@@ -555,8 +553,6 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 			return 1;
 		} else if (mr->finished[id]) { //Else means nothing in the buffer, let's see if it's because the thread is done
 			//Ok, thread is done. Return empty kvpair
-			kv->key = NULL;
-			kv->value = NULL;
 			kv->keysz = 0;
 			kv->valuesz = 0;
 			pthread_mutex_unlock(&mr->buf_mutexes[id]);
