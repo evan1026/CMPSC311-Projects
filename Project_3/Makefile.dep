@@ -1,1 +1,0 @@
-mapreduce.o: mapreduce.c mapreduce.h

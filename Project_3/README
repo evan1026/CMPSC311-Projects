@@ -3,13 +3,29 @@ Mike Berezanich, Evan Allan
 
 == Performance evaluation ==
 
-Our performance results match what would be expected. Depending on the input file filesize, increasing the number of threads generally quickened the average runtime for completing wordcount. Increasing buffer size typically didn't have much of an impact when using 1-2 threads, however when it came to using 4-8 threads, increasing buffer size reduced run time pretty drastically, especially on the larger files.
+Our performance results match what would be expected. Depending on the input
+file filesize, increasing the number of threads generally quickened the average
+runtime for completing wordcount. Increasing buffer size typically didn't have
+much of an impact when using 1-2 threads, however when it came to using 4-8
+threads, increasing buffer size reduced run time pretty drastically, especially
+on the larger files.
 
-Note: individiual run times can be found in the output directory for each of the input files. Each numbered file, i.e. '1', '2', etc. contains the times in the same order as the tables below. The first line of the file will be 1 thread, 100 B buffer, the second line will be 2 threads, 100 B buffer and so on. performance_test.sh was used to run each file with 1, 2, 4, and 8 threads and the buffer size was changed inbetween running these. statistical_analysis.py was then used to calculate the corresponding mean and standard deviation of each.
+Note: individiual run times can be found in the output directory for each of
+the input files. Each numbered file, i.e. '1', '2', etc. contains the times in
+the same order as the tables below. The first line of the file will be 1 thread,
+100 B buffer, the second line will be 2 threads, 100 B buffer and so on.
+performance_test.sh was used to run each file with 1, 2, 4, and 8 threads and
+the buffer size was changed inbetween running these. statistical_analysis.py
+was then used to calculate the corresponding mean and standard deviation of each.
+
+Note on implementation: mr_start will return a failure if some threads start but
+others do not. However, these threads will continue to run. It is possible
+(though unlikely) that some threads will run but others will not. The user should
+check for this if they are going to make the program completely safe.
 
                     Hamlet
 
-Buffer (B) | Num Thr.  | Mean (S) | Std Dev (S)     
+Buffer (B) | Num Thr.  | Mean (S) | Std Dev (S)
 ------------------------------------------------
 100        | 1         | 0.423310 | 0.006484
 100        | 2         | 0.130121 | 0.001572
@@ -59,4 +75,4 @@ Buffer (B) | Num Thr.  | Mean (S) | Std Dev (S)
 10240      | 8         | 1.430830 | 0.061814
 
 == Sources consulted ==
-(please cite here as well as in comments by the relevant code)
+None, other than man pages for functions and lecture slides
