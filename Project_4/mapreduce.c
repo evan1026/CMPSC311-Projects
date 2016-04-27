@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "mapreduce.h"
 
@@ -151,9 +152,28 @@ mr_create(map_fn map, reduce_fn reduce, int nmaps)
             mr->reduce_thread = NULL;
             mr->map_threads = malloc(nmaps * sizeof(pthread_t *));
 
+            if (mr->map_threads != NULL){
+                int i;
+
+                for (i = 0; i < nmaps; ++i){
+                    mr->map_threads[i] = malloc(sizeof(pthread_t));
+
+                    if (mr->map_threads[i] == NULL)
+                        break;
+                }
+
+                if (i != nmaps){
+                    for (--i; i >= 0; --i){
+                        free(mr->map_threads[i]);
+                    }
+                    return NULL;
+                }
+            }
+
             if (mr->sockfd != NULL && mr->socket != NULL && mr->map_threads != NULL) {
                 return mr;
             }
+
         }
     }
 
@@ -186,8 +206,13 @@ mr_destroy(struct map_reduce *mr)
             free(mr->socket);
         if (mr->finished != NULL)
             free(mr->finished);
-        if (mr->map_threads != NULL)
+        if (mr->map_threads != NULL){
+            for (int i = 0; i < mr->num_threads; i++){
+                if (mr->map_threads[i] != NULL)
+                    free(mr->map_threads[i]);
+            }
             free(mr->map_threads);
+        }
         if (mr->reduce_thread != NULL)
             free(mr->reduce_thread);
         free(mr);
@@ -202,6 +227,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
         return 1;
 
     int fd;
+    bool error = false;
 
     if (mr->is_server){
         fd = open(path, O_WRONLY | O_CREAT | O_TRUNC);
@@ -220,43 +246,58 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
             free(mr->map_threads[i]);
             mr->map_threads[i] = NULL;
         }
+
+        return 1;
     }
 
     if (mr->is_server){
         //Referenced http://www.gnu.org/software/libc/manual/html_node/Inet-Example.html#Inet-Example
 
-        mr->sockfd[0] = socket(PF_INET, SOCK_STREAM, 0);
+        *mr->sockfd = socket(PF_INET, SOCK_STREAM, 0);
 
-        if (mr->sockfd == -1){
+        if (*mr->sockfd == -1){
             fprintf(stderr, "Error creating socket\n");
             perror("");
         }
 
-        mr->socket.sin_family = AF_INET;
-        mr->socket.sin_port = htons(port);
-        mr->socket.sin_addr.s_addr = htonl (INADDR_ANY);
+        mr->socket->sin_family = AF_INET;
+        mr->socket->sin_port = htons(port);
+        mr->socket->sin_addr.s_addr = htonl (INADDR_ANY);
 
-        if (bind(mr->sockfd, mr->socket, sizeof (mr->socket)) == -1){
+        if (bind(*mr->sockfd, (struct sockaddr *) mr->socket, sizeof (mr->socket)) == -1){
             fprintf(stderr, "Error binding socket\n");
             perror("");
         }
 
-        if (listen(mr->sockfd, SOMAXCONN) == -1){ //Should SOMAXCONN be used here?
+        if (listen(*mr->sockfd, SOMAXCONN) == -1){ //Should SOMAXCONN be used here?
             fprintf(stderr, "Error listening on socket\n");
             perror("");
         }
 
-        for (int i = 0; i < mr->num_threads; i++){
-            /*
-            First off need a better name. Second off, don't know how to obtain each mapper thread's sockaddr, perhaps we need to put this in the map_reduce struct?
-            connected_socket_fd = accept(socket_fd, )
-            */
-        }
+        //TODO
 
-        //After all the connections have been accepted we can run reduce here
     } else {
         //Reaches here if client
+        close(fd);
+
+        if (mr->num_threads >= 1){
+            //TODO
+        } else {
+            fprintf(stderr, "Cannot run with less than 1 thread\n");
+
+            free(mr->reduce_thread);
+            mr->reduce_thread = NULL;
+
+            for(int i = 0; i < mr->num_threads; i++){
+                free(mr->map_threads[i]);
+                mr->map_threads[i] = NULL;
+            }
+
+            return 1;
+        }
     }
+
+    close(fd);
 
     return 0;
 }
@@ -265,6 +306,9 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 int
 mr_finish(struct map_reduce *mr)
 {
+    if (mr == NULL)
+        return -1;
+
     return 0;
 }
 

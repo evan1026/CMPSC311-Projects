@@ -20,7 +20,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <netdb.h> 
+#include <netdb.h>
 
 /* Forward-declaration, the definition to edit is farther down */
 struct map_reduce;
@@ -72,7 +72,7 @@ struct map_reduce {
 	int *sockfd;
 	struct sockaddr_in *socket;
 	bool *finished; //For use in the server
-	pthread_t *map_threads;
+	pthread_t **map_threads;
 	pthread_t *reduce_thread;
 };
 
