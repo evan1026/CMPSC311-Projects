@@ -12,6 +12,8 @@
 
 /* Header includes */
 #include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
 
 #include "mapreduce.h"
 
@@ -196,6 +198,66 @@ mr_destroy(struct map_reduce *mr)
 int
 mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 {
+    if (mr == NULL || path == NULL || ip == NULL)
+        return 1;
+
+    int fd;
+
+    if (mr->is_server){
+        fd = open(path, O_WRONLY | O_CREAT | O_TRUNC);
+    } else {
+        fd = open(path, O_RDONLY);
+    }
+
+    if (fd == -1){
+        fprintf(stderr, "Could not open or create file\n");
+        perror("");
+
+        free(mr->reduce_thread);
+        mr->reduce_thread = NULL;
+
+        for(int i = 0; i < mr->num_threads; i++){
+            free(mr->map_threads[i]);
+            mr->map_threads[i] = NULL;
+        }
+    }
+
+    if (mr->is_server){
+        //Referenced http://www.gnu.org/software/libc/manual/html_node/Inet-Example.html#Inet-Example
+
+        mr->sockfd[0] = socket(PF_INET, SOCK_STREAM, 0);
+
+        if (mr->sockfd == -1){
+            fprintf(stderr, "Error creating socket\n");
+            perror("");
+        }
+
+        mr->socket.sin_family = AF_INET;
+        mr->socket.sin_port = htons(port);
+        mr->socket.sin_addr.s_addr = htonl (INADDR_ANY);
+
+        if (bind(mr->sockfd, mr->socket, sizeof (mr->socket)) == -1){
+            fprintf(stderr, "Error binding socket\n");
+            perror("");
+        }
+
+        if (listen(mr->sockfd, SOMAXCONN) == -1){ //Should SOMAXCONN be used here?
+            fprintf(stderr, "Error listening on socket\n");
+            perror("");
+        }
+
+        for (int i = 0; i < mr->num_threads; i++){
+            /*
+            First off need a better name. Second off, don't know how to obtain each mapper thread's sockaddr, perhaps we need to put this in the map_reduce struct?
+            connected_socket_fd = accept(socket_fd, )
+            */
+        }
+
+        //After all the connections have been accepted we can run reduce here
+    } else {
+        //Reaches here if client
+    }
+
     return 0;
 }
 
