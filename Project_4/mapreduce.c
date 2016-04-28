@@ -230,6 +230,9 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 
     int fd;
     bool error = false;
+    struct hostent *server;
+
+    server = gethostbyname(ip);
 
     if (mr->is_server){
         fd = open(path, O_WRONLY | O_CREAT | O_TRUNC);
@@ -264,7 +267,11 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 
         mr->socket->sin_family = AF_INET;
         mr->socket->sin_port = htons(port);
-        mr->socket->sin_addr.s_addr = htonl (INADDR_ANY);
+        //mr->socket->sin_addr.s_addr = htonl (INADDR_ANY);
+
+        //Not sure whether to use bcopy or memcpy here. Bhuvan's demo used bcopy but other examples used memcpy (such as here http://shoe.bocks.com/net/#gethostbyname)
+        //bcopy((char *)server->h_addr_list[0], (char *)mr->socket->sin_addr.s_addr, server->h_length);
+        memcpy(&mr->socket->sin_addr, server->h_addr_list[0], server->h_length);
 
         if (bind(*mr->sockfd, (struct sockaddr *) mr->socket, sizeof (*mr->socket)) == -1){
             fprintf(stderr, "Error binding socket\n");
@@ -276,7 +283,8 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
             perror("");
         }
 
-        //TODO
+        //Would call accept() here but according to groupme it's better to do it in the reduce wrapper function to avoid hanging
+        
         /* struct reduce_params *rp = setup_reduce_params(mr, fd);
         if (rp == NULL){
             fprintf(stderr, "Error setting up reduce params struct\n");
