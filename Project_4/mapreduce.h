@@ -71,7 +71,6 @@ struct map_reduce {
 	bool is_server;
 	int *sockfd;
 	struct sockaddr_in *socket;
-	bool *finished; //For use in the server
 	pthread_t **map_threads;
 	pthread_t *reduce_thread;
 };

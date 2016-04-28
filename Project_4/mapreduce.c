@@ -139,13 +139,12 @@ mr_create(map_fn map, reduce_fn reduce, int nmaps)
             if (reduce != NULL) {
                 mr->is_server = true;
 
-                mr->finished      = malloc(nmaps * sizeof(bool));
                 mr->map_threads   = NULL;
                 mr->reduce_thread = malloc(sizeof(pthread_t));
                 mr->sockfd = malloc((nmaps + 1) * sizeof(int));
                 mr->socket = malloc((nmaps + 1) * sizeof(struct sockaddr_in));
 
-                if (mr->sockfd != NULL && mr->socket != NULL && mr->finished != NULL && mr->reduce_thread != NULL) {
+                if (mr->sockfd != NULL && mr->socket != NULL && mr->reduce_thread != NULL) {
                     return mr;
                 }
 
@@ -156,7 +155,6 @@ mr_create(map_fn map, reduce_fn reduce, int nmaps)
 
             mr->is_server = false;
 
-            mr->finished = NULL;
             mr->reduce_thread = NULL;
             mr->map_threads = malloc(nmaps * sizeof(pthread_t *));
             mr->socket = malloc(nmaps * sizeof(struct sockaddr_in));
@@ -193,8 +191,6 @@ mr_create(map_fn map, reduce_fn reduce, int nmaps)
             free(mr->sockfd);
         if (mr->socket != NULL)
             free(mr->socket);
-        if (mr->finished != NULL)
-            free(mr->finished);
         if (mr->map_threads != NULL)
             free(mr->map_threads);
         if (mr->reduce_thread != NULL)
@@ -214,8 +210,6 @@ mr_destroy(struct map_reduce *mr)
             free(mr->sockfd);
         if (mr->socket != NULL)
             free(mr->socket);
-        if (mr->finished != NULL)
-            free(mr->finished);
         if (mr->map_threads != NULL){
             for (int i = 0; i < mr->num_threads; i++){
                 if (mr->map_threads[i] != NULL)
@@ -436,6 +430,17 @@ mr_finish(struct map_reduce *mr)
     return out;
 }
 
+//Will attempt to send data 5 times before giving up
+static int attempt_send(int sockfd, const void *buf, size_t len, int flags) {
+    int ret;
+    for (int i = 0; i < 4; ++i) {
+        if ((ret = send(sockfd, buf, len, flags)) >= 0)
+          return ret;
+    }
+
+    return -1;
+}
+
 /* Called by the Map function each time it produces a key-value pair */
 int
 mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
@@ -443,7 +448,27 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
     if (kv == NULL || mr == NULL)
         return -1;
 
-    return 0;
+    int ret_val[4];
+
+    ret_val[0] = attempt_send(mr->sockfd[id], &kv->keysz,   sizeof(kv->keysz),   0);
+    ret_val[1] = attempt_send(mr->sockfd[id], kv->key,      kv->keysz,           0);
+    ret_val[2] = attempt_send(mr->sockfd[id], &kv->valuesz, sizeof(kv->valuesz), 0);
+    ret_val[3] = attempt_send(mr->sockfd[id], kv->value,    kv->valuesz,         0);
+
+    for (int i = 0; i < 4; ++i) {
+        if (ret_val[i] == -1) {
+            perror("Error sending data to server ");
+            fprintf(stderr, "Data received on server end may be corrupted.\n");
+            return -1;
+        } else if (ret_val[i] == 0) {
+            fprintf(stderr, "Server unexpectedly closed connection.\n");
+            return -1;
+        }
+    }
+
+    //fprintf(stderr, "Send: %d %s %d %s\n", kv->keysz, (char *)kv->key, kv->valuesz, (char *)kv->value);
+
+    return 1;
 }
 
 /* Called by the Reduce function to consume a key-value pair */
@@ -453,5 +478,23 @@ mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
     if (kv == NULL || mr == NULL)
         return -1;
 
-    return 0;
+    int n[4];
+
+    n[0] = recv(mr->sockfd[id], &kv->keysz,   sizeof(kv->keysz),   0);
+    n[1] = recv(mr->sockfd[id], kv->key,      kv->keysz,           0);
+    n[2] = recv(mr->sockfd[id], &kv->valuesz, sizeof(kv->valuesz), 0);
+    n[3] = recv(mr->sockfd[id], kv->value,    kv->valuesz,         0);
+
+    //Shouldn't change anything, but may serve as a bit of a sanity check
+    kv->keysz = n[1];
+    kv->valuesz = n[3];
+
+    //fprintf(stderr, "Recv: %d %s %d %s\n", kv->keysz, (char *)kv->key, kv->valuesz, (char *)kv->value);
+
+    if (n[0] == 0 || n[1] == 0 || n[2] == 0 || n[3] == 0) {
+        //Client done
+        return 0;
+    }
+
+    return 1;
 }
