@@ -79,9 +79,6 @@ static void *run_map(void *args){
 
     *ret = mp->mr->mapfn(mp->mr, mp->infd, mp->id, mp->mr->num_threads);
 
-    //Marks as finished; value used to signal reducer that there is nothing left
-    mp->mr->finished[mp->id] = true;
-
     //Check if input file is closed correctly
     if (close(mp->infd) == -1){
         fprintf(stderr, "Error closing input file for thread %d\n", mp->id);
@@ -104,6 +101,8 @@ static void *run_reduce(void *args) {
 
     *ret = rp->mr->reducefn(rp->mr, rp->outfd, rp->mr->num_threads);
 
+//Gets called as the first function of the new thread
+//passes args on to mapper function
     //Check if input file is closed correctly
     if (close(rp->outfd) == -1){
         fprintf(stderr, "Error closing output file\n");
@@ -244,12 +243,14 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
         fprintf(stderr, "Could not open or create file\n");
         perror("");
 
-        free(mr->reduce_thread);
-        mr->reduce_thread = NULL;
-
-        for(int i = 0; i < mr->num_threads; i++){
-            free(mr->map_threads[i]);
-            mr->map_threads[i] = NULL;
+        if (mr->is_server) {
+            free(mr->reduce_thread);
+            mr->reduce_thread = NULL;
+        } else {
+            for(int i = 0; i < mr->num_threads; i++){
+                free(mr->map_threads[i]);
+                mr->map_threads[i] = NULL;
+            }
         }
 
         return 1;
@@ -284,15 +285,15 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
         }
 
         //Would call accept() here but according to groupme it's better to do it in the reduce wrapper function to avoid hanging
-        
-        /* struct reduce_params *rp = setup_reduce_params(mr, fd);
+
+        struct reduce_params *rp = setup_reduce_params(mr, fd);
         if (rp == NULL){
             fprintf(stderr, "Error setting up reduce params struct\n");
             error = true;
             free(mr->reduce_thread);
             mr->reduce_thread = NULL;
-            if (close(fd) != 0){
-                fprintf(stderr, "Error closing output file\n");
+            if (close(fd) != 0 || close(*mr->sockfd) != 0){
+                fprintf(stderr, "Error closing output file/socket\n");
                 perror("");
             }
         } else {
@@ -304,7 +305,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                 error = true;
                 close(fd);
             }
-        } */
+        }
 
     } else {
         //Reaches here if client
@@ -325,7 +326,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                 mr->socket->sin_port = htons(port);
                 mr->socket->sin_addr.s_addr = htonl(INADDR_ANY);
 
-                if (connect(*mr->sockfd, (struct sockaddr *) mr->socket, sizeof(*mr->socket)) == -1){
+                if (connect(mr->sockfd[i], (struct sockaddr *) mr->socket, sizeof(*mr->socket)) == -1){
                     fprintf(stderr, "Error connecting thread %d\n", i);
                     perror("");
                 }
@@ -374,7 +375,54 @@ mr_finish(struct map_reduce *mr)
     if (mr == NULL)
         return -1;
 
-    return 0;
+    int i, out = 0;
+    void *ret = NULL;
+    int *ret_i;
+
+    if (!mr->is_server) {
+        //Go through and wait on each thread
+        for (i = 0; i < mr->num_threads; ++i) {
+            if (mr->map_threads[i] == NULL)
+                continue;
+
+            //Grab the return while waiting
+            pthread_join(*mr->map_threads[i], &ret);
+            ret_i = ret;
+
+            //If no return, something went wrong, so keep track of it, but keep waiting
+            if (ret_i == NULL) {
+                out = 1;
+                continue; //So we don't run the free later
+            }
+
+            //If the return wasn't zero, that's also an issue
+            if (*ret_i != 0)
+                out = 1;
+
+            close(mr->sockfd[i]);
+
+            free(ret_i);
+        }
+    } else {
+
+        //Do the same stuff, but with the reducer
+        if (mr->reduce_thread != NULL){
+            pthread_join(*mr->reduce_thread, &ret);
+            ret_i = ret;
+
+            if (ret_i == NULL) {
+                out = 1;
+            } else {
+                if (*ret_i != 0)
+                    out = 1;
+                free(ret_i);
+            }
+
+            close(*mr->sockfd);
+        }
+    }
+
+    return out;
 }
 
 /* Called by the Map function each time it produces a key-value pair */
