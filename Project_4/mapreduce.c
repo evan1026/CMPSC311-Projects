@@ -264,9 +264,10 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 
         mr->sockfd[mr->num_threads] = socket(AF_INET, SOCK_STREAM, 0);
 
-        if (*mr->sockfd == -1){
+        if (mr->sockfd[mr->num_threads] == -1){
             fprintf(stderr, "Error creating socket\n");
             perror("");
+            error = true;
         }
 
         mr->socket[mr->num_threads].sin_family = AF_INET;
@@ -280,11 +281,13 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
         if (bind(mr->sockfd[mr->num_threads], (struct sockaddr *) &mr->socket[mr->num_threads], sizeof (mr->socket[mr->num_threads])) == -1){
             fprintf(stderr, "Error binding socket\n");
             perror("");
+            error = true;
         }
 
         if (listen(mr->sockfd[mr->num_threads], SOMAXCONN) == -1){ //Should SOMAXCONN be used here?
             fprintf(stderr, "Error listening on socket\n");
             perror("");
+            error = true;
         }
 
         //Would call accept() here but according to groupme it's better to do it in the reduce wrapper function to avoid hanging
@@ -299,6 +302,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                 fprintf(stderr, "Error closing output file/socket\n");
                 perror("");
             }
+            error = true;
         } else {
             if (pthread_create(mr->reduce_thread, NULL, run_reduce, rp) != 0){
                 fprintf(stderr, "Error creating reduce thread\n");
@@ -307,6 +311,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                 mr->reduce_thread = NULL;
                 error = true;
                 close(fd);
+                free(rp);
             }
         }
 
@@ -323,6 +328,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                 if (mr->sockfd[i] == -1){
                     fprintf(stderr, "Error creating socket\n");
                     perror("");
+                    error = true;
                 }
 
                 mr->socket[i].sin_family = AF_INET;
@@ -332,6 +338,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                 if (connect(mr->sockfd[i], (struct sockaddr *) &mr->socket[i], sizeof(mr->socket[i])) == -1){
                     fprintf(stderr, "Error connecting thread %d\n", i);
                     perror("");
+                    error = true;
                 }
 
                 //If setup_map_params could not correctly set up our map params struct
@@ -340,6 +347,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                     error = true;
                     free(mr->map_threads[i]);
                     mr->map_threads[i] = NULL;
+                    error = true;
                 } else {
                     if (pthread_create(mr->map_threads[i], NULL, run_map, mp) != 0){
                         fprintf(stderr, "Error creating map thread %d\n", i);
@@ -347,6 +355,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                         error = true;
                         free(mr->map_threads[i]);
                         mr->map_threads[i] = NULL;
+                        error = true;
                     }
                 }
             }
@@ -449,6 +458,9 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
         return -1;
 
     int ret_val[4];
+
+    if (mr->sockfd[id] < 0)
+      return -1;
 
     ret_val[0] = attempt_send(mr->sockfd[id], &kv->keysz,   sizeof(kv->keysz),   0);
     ret_val[1] = attempt_send(mr->sockfd[id], kv->key,      kv->keysz,           0);
