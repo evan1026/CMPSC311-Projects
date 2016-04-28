@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
+#include <pthread.h>
 
 #include "mapreduce.h"
 
@@ -22,7 +24,7 @@
 /* Size of shared memory buffers */
 #define MR_BUFFER_SIZE 1024
 
-/*
+
 struct map_params{
     struct map_reduce *mr;
     int infd;
@@ -111,7 +113,7 @@ static void *run_reduce(void *args) {
     free(rp);
 
     return ret;
-}*/
+}
 
 /* Allocates and initializes an instance of the MapReduce framework */
 struct map_reduce *
@@ -253,7 +255,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
     if (mr->is_server){
         //Referenced http://www.gnu.org/software/libc/manual/html_node/Inet-Example.html#Inet-Example
 
-        *mr->sockfd = socket(PF_INET, SOCK_STREAM, 0);
+        *mr->sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
         if (*mr->sockfd == -1){
             fprintf(stderr, "Error creating socket\n");
@@ -264,7 +266,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
         mr->socket->sin_port = htons(port);
         mr->socket->sin_addr.s_addr = htonl (INADDR_ANY);
 
-        if (bind(*mr->sockfd, (struct sockaddr *) mr->socket, sizeof (mr->socket)) == -1){
+        if (bind(*mr->sockfd, (struct sockaddr *) mr->socket, sizeof (*mr->socket)) == -1){
             fprintf(stderr, "Error binding socket\n");
             perror("");
         }
@@ -275,13 +277,67 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
         }
 
         //TODO
+        /* struct reduce_params *rp = setup_reduce_params(mr, fd);
+        if (rp == NULL){
+            fprintf(stderr, "Error setting up reduce params struct\n");
+            error = true;
+            free(mr->reduce_thread);
+            mr->reduce_thread = NULL;
+            if (close(fd) != 0){
+                fprintf(stderr, "Error closing output file\n");
+                perror("");
+            }
+        } else {
+            if (pthread_create(mr->reduce_thread, NULL, run_reduce, rp) != 0){
+                fprintf(stderr, "Error creating reduce thread\n");
+                perror("");
+                free(mr->reduce_thread);
+                mr->reduce_thread = NULL;
+                error = true;
+                close(fd);
+            }
+        } */
 
     } else {
         //Reaches here if client
         close(fd);
 
         if (mr->num_threads >= 1){
-            //TODO
+            for (int i = 0; i < mr->num_threads; i++){
+                struct map_params *mp = setup_map_params(mr, path, i);
+
+                mr->sockfd[i] = socket(AF_INET, SOCK_STREAM, 0);
+
+                if (mr->sockfd[i] == -1){
+                    fprintf(stderr, "Error creating socket\n");
+                    perror("");
+                }
+
+                mr->socket->sin_family = AF_INET;
+                mr->socket->sin_port = htons(port);
+                mr->socket->sin_addr.s_addr = htonl (INADDR_ANY);
+
+                if (connect(*mr->sockfd, (struct sockaddr *) mr->socket, sizeof(*mr->socket)) == -1){
+                    fprintf(stderr, "Error connecting thread %d\n", i);
+                    perror("");
+                }
+
+                //If setup_map_params could not correctly set up our map params struct
+                if (mp == NULL){
+                    fprintf(stderr, "Error setting up map params struct. Skipping creation of thread %d\n", i);
+                    error = true;
+                    free(mr->map_threads[i]);
+                    mr->map_threads[i] = NULL;
+                } else {
+                    if (pthread_create(mr->map_threads[i], NULL, run_map, mp) != 0){
+                        fprintf(stderr, "Error creating map thread %d\n", i);
+                        perror("");
+                        error = true;
+                        free(mr->map_threads[i]);
+                        mr->map_threads[i] = NULL;
+                    }
+                }
+            }
         } else {
             fprintf(stderr, "Cannot run with less than 1 thread\n");
 
@@ -297,7 +353,8 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
         }
     }
 
-    close(fd);
+    if (error)
+        return 1;
 
     return 0;
 }
@@ -316,6 +373,29 @@ mr_finish(struct map_reduce *mr)
 int
 mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 {
+    if (kv == NULL || mr == NULL)
+        return -1;
+
+    //Make some space to copy the values
+    struct kvpair kvcopy;
+    kvcopy.key = malloc(kv->keysz);
+    kvcopy.value = malloc(kv->valuesz);
+    kvcopy.keysz = kv->keysz;
+    kvcopy.valuesz = kv->valuesz;
+
+    //Make sure we got the space
+    if (kvcopy.key == NULL || kvcopy.value == NULL){
+        if (kvcopy.key != NULL)
+            free(kvcopy.key);
+        if (kvcopy.value != NULL)
+            free(kvcopy.value);
+        return -1;
+    }
+
+    //Copy the data
+    memcpy(kvcopy.key, kv->key, kvcopy.keysz);
+    memcpy(kvcopy.value, kv->value, kvcopy.valuesz);
+
     return 0;
 }
 
@@ -323,5 +403,8 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 int
 mr_consume(struct map_reduce *mr, int id, struct kvpair *kv)
 {
+    if (kv == NULL || mr == NULL)
+        return -1;
+
     return 0;
 }
