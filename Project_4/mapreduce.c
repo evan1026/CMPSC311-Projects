@@ -315,7 +315,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
 
                 mr->socket->sin_family = AF_INET;
                 mr->socket->sin_port = htons(port);
-                mr->socket->sin_addr.s_addr = htonl (INADDR_ANY);
+                mr->socket->sin_addr.s_addr = htonl(INADDR_ANY);
 
                 if (connect(*mr->sockfd, (struct sockaddr *) mr->socket, sizeof(*mr->socket)) == -1){
                     fprintf(stderr, "Error connecting thread %d\n", i);
