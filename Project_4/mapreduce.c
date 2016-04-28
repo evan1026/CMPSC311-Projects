@@ -95,14 +95,21 @@ static void *run_map(void *args){
 static void *run_reduce(void *args) {
     struct reduce_params *rp = args;
     int *ret = malloc(sizeof(int));
+    socklen_t clilen = sizeof(struct sockaddr_in);
 
     if (ret == NULL)
         return NULL;
 
+    for (int i = 0; i < rp->mr->num_threads; ++i) {
+        rp->mr->sockfd[i] = accept(rp->mr->sockfd[rp->mr->num_threads], (struct sockaddr *) &rp->mr->socket[i], &clilen);
+        if (rp->mr->sockfd[i] < 0) {
+            fprintf(stderr, "Error accepting client %d\n", i);
+            perror("");
+        }
+    }
+
     *ret = rp->mr->reducefn(rp->mr, rp->outfd, rp->mr->num_threads);
 
-//Gets called as the first function of the new thread
-//passes args on to mapper function
     //Check if input file is closed correctly
     if (close(rp->outfd) == -1){
         fprintf(stderr, "Error closing output file\n");
@@ -126,8 +133,6 @@ mr_create(map_fn map, reduce_fn reduce, int nmaps)
         mr->mapfn = map;
         mr->reducefn = reduce;
 
-        mr->sockfd = malloc(nmaps * sizeof(int));
-        mr->socket = malloc(nmaps * sizeof(struct sockaddr_in));
 
         if (map == NULL) {
             //Server
@@ -137,6 +142,8 @@ mr_create(map_fn map, reduce_fn reduce, int nmaps)
                 mr->finished      = malloc(nmaps * sizeof(bool));
                 mr->map_threads   = NULL;
                 mr->reduce_thread = malloc(sizeof(pthread_t));
+                mr->sockfd = malloc((nmaps + 1) * sizeof(int));
+                mr->socket = malloc((nmaps + 1) * sizeof(struct sockaddr_in));
 
                 if (mr->sockfd != NULL && mr->socket != NULL && mr->finished != NULL && mr->reduce_thread != NULL) {
                     return mr;
@@ -152,6 +159,8 @@ mr_create(map_fn map, reduce_fn reduce, int nmaps)
             mr->finished = NULL;
             mr->reduce_thread = NULL;
             mr->map_threads = malloc(nmaps * sizeof(pthread_t *));
+            mr->socket = malloc(nmaps * sizeof(struct sockaddr_in));
+            mr->sockfd = malloc(nmaps * sizeof(int));
 
             if (mr->map_threads != NULL){
                 int i;
@@ -259,27 +268,27 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
     if (mr->is_server){
         //Referenced http://www.gnu.org/software/libc/manual/html_node/Inet-Example.html#Inet-Example
 
-        *mr->sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        mr->sockfd[mr->num_threads] = socket(AF_INET, SOCK_STREAM, 0);
 
         if (*mr->sockfd == -1){
             fprintf(stderr, "Error creating socket\n");
             perror("");
         }
 
-        mr->socket->sin_family = AF_INET;
-        mr->socket->sin_port = htons(port);
+        mr->socket[mr->num_threads].sin_family = AF_INET;
+        mr->socket[mr->num_threads].sin_port = htons(port);
         //mr->socket->sin_addr.s_addr = htonl (INADDR_ANY);
 
         //Not sure whether to use bcopy or memcpy here. Bhuvan's demo used bcopy but other examples used memcpy (such as here http://shoe.bocks.com/net/#gethostbyname)
         //bcopy((char *)server->h_addr_list[0], (char *)mr->socket->sin_addr.s_addr, server->h_length);
-        memcpy(&mr->socket->sin_addr, server->h_addr_list[0], server->h_length);
+        memcpy(&mr->socket[mr->num_threads].sin_addr, server->h_addr_list[0], server->h_length);
 
-        if (bind(*mr->sockfd, (struct sockaddr *) mr->socket, sizeof (*mr->socket)) == -1){
+        if (bind(mr->sockfd[mr->num_threads], (struct sockaddr *) &mr->socket[mr->num_threads], sizeof (mr->socket[mr->num_threads])) == -1){
             fprintf(stderr, "Error binding socket\n");
             perror("");
         }
 
-        if (listen(*mr->sockfd, SOMAXCONN) == -1){ //Should SOMAXCONN be used here?
+        if (listen(mr->sockfd[mr->num_threads], SOMAXCONN) == -1){ //Should SOMAXCONN be used here?
             fprintf(stderr, "Error listening on socket\n");
             perror("");
         }
@@ -292,7 +301,7 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
             error = true;
             free(mr->reduce_thread);
             mr->reduce_thread = NULL;
-            if (close(fd) != 0 || close(*mr->sockfd) != 0){
+            if (close(fd) != 0 || close(mr->sockfd[mr->num_threads]) != 0){
                 fprintf(stderr, "Error closing output file/socket\n");
                 perror("");
             }
@@ -322,11 +331,11 @@ mr_start(struct map_reduce *mr, const char *path, const char *ip, uint16_t port)
                     perror("");
                 }
 
-                mr->socket->sin_family = AF_INET;
-                mr->socket->sin_port = htons(port);
-                mr->socket->sin_addr.s_addr = htonl(INADDR_ANY);
+                mr->socket[i].sin_family = AF_INET;
+                mr->socket[i].sin_port = htons(port);
+                mr->socket[i].sin_addr.s_addr = htonl(INADDR_ANY);
 
-                if (connect(mr->sockfd[i], (struct sockaddr *) mr->socket, sizeof(*mr->socket)) == -1){
+                if (connect(mr->sockfd[i], (struct sockaddr *) &mr->socket[i], sizeof(mr->socket[i])) == -1){
                     fprintf(stderr, "Error connecting thread %d\n", i);
                     perror("");
                 }
@@ -418,7 +427,9 @@ mr_finish(struct map_reduce *mr)
                 free(ret_i);
             }
 
-            close(*mr->sockfd);
+            for (i = 0; i <= mr->num_threads; ++i) {
+                close(mr->sockfd[i]);
+            }
         }
     }
 
@@ -431,26 +442,6 @@ mr_produce(struct map_reduce *mr, int id, const struct kvpair *kv)
 {
     if (kv == NULL || mr == NULL)
         return -1;
-
-    //Make some space to copy the values
-    struct kvpair kvcopy;
-    kvcopy.key = malloc(kv->keysz);
-    kvcopy.value = malloc(kv->valuesz);
-    kvcopy.keysz = kv->keysz;
-    kvcopy.valuesz = kv->valuesz;
-
-    //Make sure we got the space
-    if (kvcopy.key == NULL || kvcopy.value == NULL){
-        if (kvcopy.key != NULL)
-            free(kvcopy.key);
-        if (kvcopy.value != NULL)
-            free(kvcopy.value);
-        return -1;
-    }
-
-    //Copy the data
-    memcpy(kvcopy.key, kv->key, kvcopy.keysz);
-    memcpy(kvcopy.value, kv->value, kvcopy.valuesz);
 
     return 0;
 }
