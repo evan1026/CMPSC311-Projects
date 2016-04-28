@@ -5,3 +5,4 @@ mr-sleep
 mr-trace
 mr-wordc
 run-tests
+vgcore.*
