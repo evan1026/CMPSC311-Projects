@@ -1,4 +1,6 @@
-*.o
+Makefile.dep
+Makefile.gcc
+mapreduce.o
 mr-sleep
 mr-trace
 mr-wordc
